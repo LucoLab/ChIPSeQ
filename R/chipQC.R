@@ -1,7 +1,7 @@
 #' ---
 #' title: "ChIP-SEQ QC Analysis"
 #' author: "Jean-Philippe Villemin"
-#' date: "May 22, 2017"
+#' date: "June 7, 2017"
 #' output:
 #'      github_document:
 #'        toc: true
@@ -64,15 +64,13 @@ opts_chunk$set(fig.path = 'figure/silk-')
 option_list = list(
   make_option(c("-f", "--file"), type="character", default=NULL, help="File input", metavar="character"),
   make_option(c("-n", "--name"), type="character", default=NULL, help="Name output ", metavar="character"),
-  make_option(c("-c", "--consensus"),action="store_true", default=TRUE,help="Chose if you want to use consensus mode"),
+  make_option(c("-c", "--consensus"),action="store_true", default=FALSE,help="Chose if you want to use consensus mode"),
   make_option(c("-s", "--summits"), action="store", default=250,help="Length up and downstream the peak when consensus is used only [default %default] * 2") 
   
 ); 
 
-# Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChip.csv -n ALL
-# Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChip.csv -n ALL_Consensus
 # Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
-# Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup_Consensus
+# Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup
 
 parser = OptionParser(usage = "%prog [options] ",option_list=option_list);
 arguments = parse_args(parser, positional_arguments = 0);
@@ -119,11 +117,11 @@ if (opt$consensus) {
 print("Consenus analysis :")
 name_file_to_save <- paste0(opt$name,"Consensus",collapse = "_")
 name_file_to_save <- paste0(name_file_to_save,opt$summits,collapse = "_")
-experiment = ChIPQC(samples,annotation="hg38",consensus=TRUE,bCounts=TRUE,summits=250,chromosomes=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chrX","chrY"),blacklist="/home/jean-philippe.villemin/mount_archive2/commun.luco/ref/genes/GRCh38_PRIM_GENCODE_R25/hg38.blacklist.bed.gz") 
+experiment = ChIPQC(samples,annotation="hg38",consensus=TRUE,bCounts=TRUE,summits=250,chromosomes=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY"),blacklist="/home/jean-philippe.villemin/mount_archive2/commun.luco/ref/genes/GRCh38_PRIM_GENCODE_R25/hg38.blacklist.bed.gz") 
 } else
 {
 print("Standard analysis :")
-experiment = ChIPQC(samples,annotation="hg38",chromosomes=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chrX","chrY"),blacklist="/home/jean-philippe.villemin/mount_archive2/commun.luco/ref/genes/GRCh38_PRIM_GENCODE_R25/hg38.blacklist.bed.gz")
+experiment = ChIPQC(samples,annotation="hg38",chromosomes=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY"),blacklist="/home/jean-philippe.villemin/mount_archive2/commun.luco/ref/genes/GRCh38_PRIM_GENCODE_R25/hg38.blacklist.bed.gz")
 }
 
 #' Save RData object on disk to load later for differential affinity binding.
