@@ -31,7 +31,7 @@
 #' 
 #' ## Usage (advised case)
 #+ usage, echo=TRUE, eval=FALSE
-#' Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
+#' **Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c**
 #'  
 #' ## Notes  
 #' 
@@ -52,12 +52,8 @@
 
 #+ setup, include=FALSE
 suppressMessages(library(knitr))
-suppressMessages(library(chipseq))
-suppressMessages(library(ChIPQC))
-suppressMessages(library(DiffBind))
-suppressMessages(library(chromstaR))
-suppressMessages(library(ChIPseeker))
-suppressMessages(library(rtracklayer))
+library(ChIPQC)
+library(BiocParallel)
 suppressMessages(library(optparse))
 opts_chunk$set(fig.path = 'figure/silk-')
 
@@ -69,8 +65,8 @@ option_list = list(
   
 ); 
 
-# Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
-# Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup
+# Rscript chipQC.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
+# Rscript chipQC.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup
 
 parser = OptionParser(usage = "%prog [options] ",option_list=option_list);
 arguments = parse_args(parser, positional_arguments = 0);
@@ -101,7 +97,7 @@ print(opt$summits)
 
 #' Needed to avoid memory leaks...By limiting the number of core used by chipQC , you limit memory usage.
 #+ register-cores,  include=TRUE
-register(MulticoreParam(workers = 10, jobname=opt$name, stop.on.error = TRUE,progressbar = TRUE,log = TRUE, threshold = "INFO",logdir="."), default = TRUE)
+register(MulticoreParam(workers = 10, jobname=opt$name, stop.on.error = TRUE,progressbar = FALSE,log = FALSE, threshold = "INFO",logdir="."), default = TRUE)
 #' <!-- register(SerialParam(), default = TRUE)
 #' bpparam() -->
 
