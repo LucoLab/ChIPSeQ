@@ -1,5 +1,5 @@
 #' ---
-#' title: "USEQ write to file peaksets "
+#' title: "Extract peakset from USEQ to write peaks"
 #' author: "Jean-Philippe Villemin"
 #' date: "June 12, 2017"
 #' output:
