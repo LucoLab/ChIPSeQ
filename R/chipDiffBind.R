@@ -134,9 +134,13 @@ dba.plotHeatmap(dba_chip_init)
 dba_chip <- dba(dba_chip_init, mask=dba_chip_init@DBA$masks[[opt$name]])
 dba_chip$config$fragmentSize <- dba_chip$config$fragmentSize[dba_chip_init@DBA$masks[[opt$name]]]
 
+
 print("Mask")
 dba.show(dba_chip)
 names(dba_chip$masks)
+
+dba.plotHeatmap(dba_chip)
+
 
 type=""
 if (opt$analyse==1) {type=DBA_CONDITION
@@ -193,6 +197,7 @@ if (opt$analyse==1) {
 }
 
 dba.show(dba_chip, bContrast=T)
+#dba.plotVenn(dba_chip,contrast=1:opt$numberContrast)
 
 print("Analyse")
 # bFullLibrarySize=T method=DBA_DESEQ2
@@ -219,17 +224,18 @@ print("report")
 #bCalledDetail peak caller status should be included for each sample (if available). Columns are added for each sample in the first group, followed by
 #columns for each sample in the second group.
 #bFlip
+chroms=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrY","chrX")
 for (contrast in 1:opt$numberContrast) {
   print(contrast)
   filename=paste0(c(filename,contrast),collapse=".")
   print(filename)
-  dba_chip.DB <-dba.report(dba_chip,contrast=contrast,bCalled=TRUE,bCounts=TRUE,bCalledDetail=TRUE,ext='tsv',file=filename,initString="")
+  dba_chip.DB <-dba.report(dba_chip,contrast=contrast,bCalled=TRUE,bCounts=TRUE,bCalledDetail=TRUE,ext='tsv',file=filename,initString=NULL)
+  if(is.null(dba_chip.DB)){next}
   #range_dataFrame <- gRanges2bed(dba_chip.DB)
   #write.table(range_dataFrame, file=paste0(c(final,"bed"),collapse="."), quote=F, sep="\t", row.names=F, col.names=F)
-  export.bed(dba_chip.DB, paste0(c(final,contrast,"fromReport","bed"),collapse="."))
+  export.bed(dba_chip.DB[seqnames(dba_chip.DB) %in% chroms], paste0(c(final,contrast,"fromReport","bed"),collapse="."))
   #look at the binding affinity differences
   dba.plotMA(dba_chip,contrast=contrast)
-  dba.plotVenn(dba_chip,contrast=contrast)
   if (opt$analyse==1){ dba.plotPCA(dba_chip, DBA_CONDITION, label=DBA_CONDITION,contrast=contrast) } 
   else { dba.plotPCA(dba_chip, DBA_FACTOR, label=DBA_FACTOR,contrast=contrast) } 
   dba.plotPCA(dba_chip, attributes=c(DBA_FACTOR,DBA_CONDITION),label=DBA_ID,contrast=contrast)
@@ -241,34 +247,7 @@ for (contrast in 1:opt$numberContrast) {
 
 }
 dev.off()
-# /*
-#dba.peakset(DBA=NULL, peaks, sampID, tissue, factor, condition, treatment, replicate,
-#            control, peak.caller, peak.format, reads=0, consensus=FALSE,
-#            bamReads, bamControl,
-#            scoreCol, bLowerScoreBetter, filter, counts,
-#            bRemoveM=TRUE, bRemoveRandom=TRUE,
-#            minOverlap=2, bMerge=TRUE,
-#            bRetrieve=FALSE, writeFile, numCols=4,
-#            DataType=DBA$config$DataType)
-#peak1.consensus <- dba.peakset(dba_chip,minOverlap=2,condition="T1",consensus=TRUE,bRetrieve=TRUE,writeFile=paste0(c(final,"T1","tsv"),collapse=".") ,DataType=DBA_DATA_GRANGES)
-#range_df <- gRanges2bed(peak1.consensus)
-#write.table(range_df, file=paste0(c(final,"bed"),collapse="."), quote=F, sep="\t", row.names=F, col.names=F)
 
-# */
-#retrieve the consensus peakset as RangedData object
-#mcf7.consensus <- dba.peakset(mcf7,mcf7$masks$Consensus,bRetrieve=TRUE)
-#mcf7.consensus
-#range_df <- gRanges2bed(mcf7.consensus)
-
-# specific output folder
-#wig.path <- dir_output
-# set strand to "+"
-#strand(chippeaks)="+"
-#strand(useqpeaks)="+"
-#strand(macspeaks)="+"
-# write bed files of the peaks
-#export.bed(useqpeaks, paste(wig.path,"/USeq_peaks.bed",sep=""))
-#export.bed(macspeaks, paste(wig.path,"/MACS2_peaks.bed",sep=""))
 
 #/* LonG LonG LonG Description of what report can do
 #if neither bDB or bNotDB is set to TRUE, a report dataframe, GRanges, or RangedData object is
