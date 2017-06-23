@@ -133,7 +133,7 @@ dba.plotHeatmap(dba_chip_init)
 
 dba_chip <- dba(dba_chip_init, mask=dba_chip_init@DBA$masks[[opt$name]])
 dba_chip$config$fragmentSize <- dba_chip$config$fragmentSize[dba_chip_init@DBA$masks[[opt$name]]]
-
+dba_chip$config$fragmentSize
 
 print("Mask")
 dba.show(dba_chip)
@@ -159,7 +159,7 @@ dba_chip_consensus <- dba.peakset(dba_chip, consensus=c(type),minOverlap=0.99)
 dba.show(dba_chip_consensus)
 
 dba.plotVenn(dba_chip_consensus,dba_chip_consensus$masks$Consensus)
-
+#dev.off()
 consensus_peaks <- dba.peakset(dba_chip_consensus, bRetrieve=TRUE)
 # Check bug https://support.bioconductor.org/p/97045/#97051
 
@@ -229,7 +229,7 @@ for (contrast in 1:opt$numberContrast) {
   print(contrast)
   filename=paste0(c(filename,contrast),collapse=".")
   print(filename)
-  dba_chip.DB <-dba.report(dba_chip,contrast=contrast,bCalled=TRUE,bCounts=TRUE,bCalledDetail=TRUE,ext='tsv',file=filename,initString=NULL)
+  dba_chip.DB <-dba.report(dba_chip,contrast=contrast,bCalled=TRUE,bCounts=TRUE,bCalledDetail=TRUE,ext='tsv',file=filename,initString="")
   if(is.null(dba_chip.DB)){next}
   #range_dataFrame <- gRanges2bed(dba_chip.DB)
   #write.table(range_dataFrame, file=paste0(c(final,"bed"),collapse="."), quote=F, sep="\t", row.names=F, col.names=F)
