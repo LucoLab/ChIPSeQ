@@ -12,6 +12,8 @@
 #'        value: x
 #'     analyse:
 #'        value: x
+#'     percent:
+#'        value: x
 #' ---
 
 #' ## Description
@@ -37,8 +39,10 @@ opts_chunk$set(fig.path = 'figure/silk-')
 
 option_list = list(
   make_option(c("-f", "--file"), type="character", default=NULL, help="Absolute File Input Path", metavar="character"),
-  make_option(c("-n", "--numberContrast"), type="integer", default=1, help="Nb contrast to check", metavar="“number”"),
+  make_option(c("-n", "--numberContrast"), type="integer", default=1, help="Nb contrast to check", metavar="number"),
   make_option(c("-m", "--name"), type="character", default=NULL, help="Name of the mark", metavar="character"),
+  make_option(c("-p", "--percent"), type="character", default=0.99, help="% of sample to consider per group defaut:0.9", metavar="number"),
+  
   make_option(c("-a", "--analyse"), type="integer", default=1, help="Analysis TimePoint -1 or Mark -2", metavar="integer")
 ); 
 
@@ -89,11 +93,13 @@ return(df)
 length(opt)
 #' Trick to handle if script is launched directly or by generateDoc
 #+ opt-param, include=FALSE
-if (length(opt) != 5 ) { 
+if (length(opt) != 6 ) { 
   opt$file <- params$file
   opt$numberContrast <- params$numberContrast
   opt$name <- params$name
   opt$analyse <- params$analyse
+  opt$percent <- params$percent
+  
 }
 
 filename   = basename(opt$file)
@@ -107,12 +113,23 @@ print(opt$analyse)
 print(filename)
 print(dir_output)
 
-
 #' Load dba object : 
 dba_chip_init <- dba.load(file=filename,dir= dir_output, pre='', ext='RData')
 
+dir_output = paste0(c(dir_output,opt$name),collapse="/")
+print(dir_output)
+
+createDir <- ifelse(!dir.exists(dir_output), dir.create(file.path(dir_output),recursive = TRUE),FALSE)
+if(!createDir){print ("Dir already exist")}
+
+
 print("LoadChipQCobject")
 dba.show(dba_chip_init)
+
+#+ When-you-want-to-recreate-ChipQCreport, echo=FALSE, eval=FALSE
+#ChIPQCreport(dba_chip_init,facet=T,lineBy=c("Replicate"),facetBy=c("Condition","Factor"),reportName=paste0(filename,"Marks",collapse = "_"), reportFolder=dir_output,colourBy=c("Replicate"))
+#stop()
+
 
 #Define pdf where graphics will be plotted
 filename=paste0(c(filename,opt$name),collapse='.')
@@ -155,6 +172,7 @@ type=""
 if (opt$analyse==1) {type=DBA_CONDITION
 } else { type=DBA_FACTOR}
 
+print("dba_chip_consensus Peakset")
 dba_chip_consensus <- dba.peakset(dba_chip, consensus=c(type),minOverlap=0.99)
 dba.show(dba_chip_consensus)
 
@@ -179,7 +197,9 @@ print("Count")
 #dba_chip <- dba.count(dba_chip,minOverlap=2)
 dba_chip <- dba.count(dba_chip, peaks=consensus_peaks)
 #dbasavefile <- dba.save(dba_chip, file=paste0(c(filename,"count"),collapse="_"), dir=dir_output, pre='', ext='RData', bMinimize=FALSE) 
+print("Heatmap Consensus Peakset")
 dba.show(dba_chip)
+dba.plotHeatmap(dba_chip)
 
 print("Contrast")
 # /*
