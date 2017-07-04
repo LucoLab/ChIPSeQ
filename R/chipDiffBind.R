@@ -41,7 +41,7 @@ option_list = list(
   make_option(c("-f", "--file"), type="character", default=NULL, help="Absolute File Input Path", metavar="character"),
   make_option(c("-n", "--numberContrast"), type="integer", default=1, help="Nb contrast to check", metavar="number"),
   make_option(c("-m", "--name"), type="character", default=NULL, help="Name of the mark", metavar="character"),
-  make_option(c("-p", "--percent"), type="character", default=0.99, help="% of sample to consider per group defaut:0.9", metavar="number"),
+  make_option(c("-p", "--percent"), type="double", default=0.99, help="% of sample to consider per group defaut:0.9", metavar="number"),
   make_option(c("-a", "--analyse"), type="integer", default=1, help="Analysis TimePoint -1 or Mark -2", metavar="integer")
 ); 
 
@@ -211,9 +211,9 @@ print("Contrast")
 # */
 
 if (opt$analyse==1) {
-  dba_chip <- dba.contrast(dba_chip,categories=DBA_CONDITION,minMembers=1)
+  dba_chip <- dba.contrast(dba_chip,categories=DBA_CONDITION,minMembers=2)
 }  else { 
-   dba_chip <- dba.contrast(dba_chip,categories=DBA_FACTOR,minMembers=1)
+   dba_chip <- dba.contrast(dba_chip,categories=DBA_FACTOR,minMembers=2)
 }
 
 dba.show(dba_chip, bContrast=T)
