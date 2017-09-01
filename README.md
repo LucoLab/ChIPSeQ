@@ -15,6 +15,7 @@ This tutorial goal is to make people understand how the raw data has been proces
 4. Multiqc (marking duplicates and plot number of mapped reads)
 7. ChipQC
 8. DiffBinding and Peak annotation
+9. ChipSeq & Splicing
 
 ## Set up Environment
 
@@ -163,6 +164,8 @@ Then run :
 Rscript multibarplot.R --file=PathToTheMatriceFile**
 ```
 
+You can also use this script to plot Number of Raw ChipSeq Peaks, Number of Differentially Bound Histones. (Modify the input file accordingly)
+
 ## ChipQC
 
 First you need to create a samplesheet containing all path to your samples. see( ChipQC ,DiffBind,Doc )
@@ -178,18 +181,82 @@ Option -c is used to say you are using consenus methodology.
 Option -n is used to say what is the name of the Rboject saved.  
 
 ```shell
-Rscript chip.R --file /pathTO/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
+Rscript chipQC.R --file /pathTO/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
 ```
+
+![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/chipQC.png)
+
 
 ## DiffBinding and Peak annotation
 
-Here you will test a variation of binding between condition using output from the step before.  
+Here you will test a variation of binding between condition using R object output (name ALL_MarkedDup in this example) from the step before.  
 Option -n is used to say the number of conditions.  
 Option -m is used to say which marks from your sample you want to analyze.
+Option -p is used to say percentage at least used to retrieve peaks in all you samples. minOverlap (peakset parameter in diffbind) only include peaks in at least this many peaksets in the main binding matrix.If minOverlap is between zero and one,
+peak will be included from at least this proportion of peaksets.  
+You will do that for each mark you want to analyse in your sampleshit.
 
 ```shell
-Rscript chipDiffBind.R --file=/pathTO/dba_ALL_MarkedDup2Consensus250 -n 3 -m K27AC
+Rscript chipDiffBind.R --file=/pathTO/ALL_MarkedDup -n 3 -m K27AC -p 0.99
 ```
+**NB** : Don't use the .Rdata extension
+
+Description of output : TODO
+
+
+## ChipSeq & Splicing
+
+You have to use *merge.splicing.fromRMATS.sh* on each events to create a cleaned & merged list for each of splicing events.  
+
+```shell
+merge.splicing.fromRMATS.sh SE
+merge.splicing.fromRMATS.sh RI
+merge.splicing.fromRMATS.sh MXE
+merge.splicing.fromRMATS.sh A5SS 
+merge.splicing.fromRMATS.sh A3SS 
+```
+
+Then you can apply on these cleaned bed list, the following script , it will count how many differents events you have per condition.  
+
+```shell
+Rscript splicing.R --file1=RMATS/SE/EARLY.bed --file2=RMATS/MXE/EARLY.bed --file3=RMATS/RI/EARLY.bed --file4=RMATS/A5SS/EARLY.bed --file5=RMATS/A3SS/EARLY.bed
+
+​Rscript splicing.R --file1=RMATS/SE/EARLY.bed --file2=RMATS/MXE/EARLY.bed --file3=RMATS/RI/EARLY.bed --file4=RMATS/A5SS/EARLY.bed --file5=RMATS/A3SS/EARLY.bed​
+```
+Finally , you  intersect peak from chipSeq with splicing Event :   
+
+```shell
+bedtools intersect -wo -a CHIPSEQ_2017_1_ALL/ChIPQC/${MARK}/dba_EVERYTHING_MarkedDupConsensus500.${MARK}.${TIMEPOINT}.bed -b workspace/beds/exon/met/${EVENT}/*${STATUS}.bed -filenames > data/workspace/beds/results/clean/${MARK}.${TIMEPOINT}.hg38.vs.ExonEMT.${EVENT}.${STATUS}.bed
+```
+
+where following parameters can be :  
+
+${STATUS}=LATE,EARLY  
+${MARK}=Name of your mark (K27ME3,K4ME3...)  
+${TIMEPOINT}=T1_vs_UnT7,T7_vs_UnT7  
+${EVENT}=SE,RI,A3SS,A5SS  
+
+Once you have done this for all the events , condition and marks. You can merge them into one file keeping  on each line the name of the file from where they are extracted. Indeed, you will easily retrieve condition, event and name of you mark.  
+
+```shell
+find . -type f | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes.tsv
+```
+You can count how many elements you have by condition and type of splicing events.
+```shell
+Rscript countOverlap --file=BigOverlapFile.csv
+```
+
+You can reformat the output and then plot histogram using *multibarplot.R* ( Need to modify hardcoded values because I used this script several times with a bunch of differents values).  
+Input file should look like this:  
+
+| Sample |	A3SS |	A5SS |	MXE |	RI |	SE |
+| ---   | --- | --- | --- | --- | --- |
+| K27AC | 77 | 1256 | 75224143 | 683 | 627 | 
+| K4ME1 | 675 | 4958 | 644 | 1765 | 1484 | 
+| K79ME2 | 8532 | 38 | 834 | 5004 | 4804 | 
+
+
+
 
 
 
