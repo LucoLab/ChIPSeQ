@@ -221,9 +221,9 @@ Then you can apply on these cleaned bed list, the following script , it will cou
 ```shell
 Rscript splicing.R --file1=RMATS/SE/EARLY.bed --file2=RMATS/MXE/EARLY.bed --file3=RMATS/RI/EARLY.bed --file4=RMATS/A5SS/EARLY.bed --file5=RMATS/A3SS/EARLY.bed
 
-​Rscript splicing.R --file1=RMATS/SE/EARLY.bed --file2=RMATS/MXE/EARLY.bed --file3=RMATS/RI/EARLY.bed --file4=RMATS/A5SS/EARLY.bed --file5=RMATS/A3SS/EARLY.bed​
+​Rscript splicing.R --file1=RMATS/SE/LATE.bed --file2=RMATS/MXE/LATE.bed --file3=RMATS/RI/LATE.bed --file4=RMATS/A5SS/LATE.bed --file5=RMATS/A3SS/LATE.bed​
 ```
-Finally , you  intersect peak from chipSeq with splicing Event :   
+Finally , you  intersect peak from chipSeq with splicing Event. You intersect histone differentially bound in Early condition with splicing events detected in Early.( respectively histone bound differentially bound in LATE with splicing events detected in LATE) :   
 
 ```shell
 bedtools intersect -wo -a CHIPSEQ_2017_1_ALL/ChIPQC/${MARK}/dba_EVERYTHING_MarkedDupConsensus500.${MARK}.${TIMEPOINT}.bed -b workspace/beds/exon/met/${EVENT}/*${STATUS}.bed -filenames > data/workspace/beds/results/clean/${MARK}.${TIMEPOINT}.hg38.vs.ExonEMT.${EVENT}.${STATUS}.bed
@@ -255,8 +255,23 @@ Input file should look like this:
 | K4ME1 | 675 | 4958 | 644 | 1765 | 1484 | 
 | K79ME2 | 8532 | 38 | 834 | 5004 | 4804 | 
 
+You can separate again the file in several files per histone mark.
 
 
+```shell
+find . -type f -name "*K36ME3*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K36ME3.tsv
+find . -type f -name "*K4ME3*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K4ME3.tsv
+find . -type f -name "*K4ME1*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K4ME1.tsv
+find . -type f -name "*K20ME1*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K20ME1.tsv
+find . -type f -name "*K79ME2*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K79ME2.tsv
+find . -type f -name "*K27AC*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K27AC.tsv
+find . -type f -name "*K27ME3*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K27ME3.tsv
+```
 
+This is useful if you want to plot a scatterplot per histone mark between dpsi and peakfold as follows :
 
+```shell
+Rscript scatter.R --file=input.csv
+```
 
+![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/scatter.png)

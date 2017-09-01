@@ -31,7 +31,7 @@
 #' 
 #' ## Usage (advised case)
 #+ usage, echo=TRUE, eval=FALSE
-#' **Rscript chip.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c**
+#' **Rscript chipQC.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c**
 #'  
 #' ## Notes  
 #' 
@@ -66,7 +66,7 @@ option_list = list(
 ); 
 
 # Rscript chipQC.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
-# Rscript chipQC.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n ALL_MarkedDup
+# Rscript chipQC.R --file /home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv -n kikou -s 250 -c
 
 parser = OptionParser(usage = "%prog [options] ",option_list=option_list);
 arguments = parse_args(parser, positional_arguments = 0);
@@ -106,6 +106,31 @@ register(MulticoreParam(workers = 10, jobname=opt$name, stop.on.error = TRUE,pro
 samples <- read.csv(opt$file)
 name_file_to_save <- opt$name
 
+dba_chip <- dba.load(file="dba_EVERYTHING_MarkedDupConsensus500",dir= '/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/ChIPQC/', pre='', ext='RData')
+
+#dba.show(dba_chip)
+#stop()
+#
+
+#pdf(file=paste(c(opt$name,"pdf"),collapse="."))
+
+#sampleList = QCsample(dba_chip)
+#subset1 = ChIPQC(samples[1:6,], samples=sampleList)
+#subset2 = ChIPQC(samples[7:12,], samples=sampleList)
+#subset3 = ChIPQC(samples[13:18,], samples=sampleList)
+#subset4 = ChIPQC(samples[19:24,], samples=sampleList)
+#subset5 = ChIPQC(samples[25:30,], samples=sampleList)
+#subset6 = ChIPQC(samples[31:36,], samples=sampleList)
+#subset7 = ChIPQC(samples[37:42,], samples=sampleList)
+
+#plotPrincomp(subset1,attributes=c("SampleID"),xlim=c(-1,1))
+#plotPrincomp(subset2,attributes=c("SampleID"),xlim=c(-1,1))
+#plotPrincomp(subset3,attributes=c("SampleID"),xlim=c(-1,1))
+#plotPrincomp(subset4,attributes=c("SampleID"),xlim=c(-1,1))
+#plotPrincomp(subset5,attributes=c("SampleID"),xlim=c(-1,1))
+#plotPrincomp(subset6,attributes=c("SampleID"),xlim=c(-1,1))
+#plotPrincomp(subset7,attributes=c("SampleID"),xlim=c(-1,1))
+
 
 #' Do either consensus or standard ChIPQC :
 #+ QC-experiment-consensus, echo=TRUE, eval=FALSE
@@ -113,7 +138,7 @@ if (opt$consensus) {
 print("Consenus analysis :")
 name_file_to_save <- paste0(opt$name,"Consensus",collapse = "_")
 name_file_to_save <- paste0(name_file_to_save,opt$summits,collapse = "_")
-experiment = ChIPQC(samples,annotation="hg38",consensus=TRUE,bCounts=TRUE,summits=250,chromosomes=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY"),blacklist="/home/jean-philippe.villemin/mount_archive2/commun.luco/ref/genes/GRCh38_PRIM_GENCODE_R25/hg38.blacklist.bed.gz") 
+experiment = ChIPQC(samples,annotation="hg38",consensus=TRUE,bCounts=TRUE,summits=opt$summits,chromosomes=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY"),blacklist="/home/jean-philippe.villemin/mount_archive2/commun.luco/ref/genes/GRCh38_PRIM_GENCODE_R25/hg38.blacklist.bed.gz") 
 } else
 {
 print("Standard analysis :")
