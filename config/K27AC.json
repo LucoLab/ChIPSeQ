@@ -1,0 +1,124 @@
+{
+"duplicates" : "NO",
+"plotIs" : "TSS",
+"winInExon" : "5000",
+"winInIntron" : "5000",
+"path_to_output": "/home/jean-philippe.villemin/data/data/plotProfile/tss_by_DGE/",
+"list_profile" : ["Rep1","Rep2","Control"],
+
+"list_bed" : {
+	"bed-tss-down" : { 
+	 "color" : "green",
+	"path" : "/home/jean-philippe.villemin/data/data/tssByDEG/DOWN_T7.unique.tss.0based.bed",
+	"color_degrade" : "color-down"
+			} ,
+	"bed-tss-up" : { 
+	 "color" : "red",
+	"path" : "/home/jean-philippe.villemin/data/data/tssByDEG/UP_T7.unique.tss.0based.bed",
+	"color_degrade" : "color-up"
+			} 
+},
+
+"files":
+		{ 
+		 "K27AC_UNT": 
+			{ 
+				"Rep1": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/unT7/K27AC_rep1/mapping/hg38/Luco_15_S15_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150" ,
+	 			"color-down" : "#73e566", 
+				"color-up" : "#ffb3b3",
+				"color-neutral": "#bfbfbf" ,
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/unT7/K27AC_rep1/mapping/hg38/Luco_15_S15_R1_001.sorted.removed.marked.bam"
+				 },
+	
+				"Rep2": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/unT7/K27AC_rep3/mapping/hg38/Luco_16_2_S16_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150" ,
+	 			"color-down" : "#73e566", 
+				"color-up" : "#ffb3b3",
+				"color-neutral": "#bfbfbf" ,
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/unT7/K27AC_rep3/mapping/hg38/Luco_16_2_S16_R1_001.sorted.removed.marked.bam"
+				},
+				"Control": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/unT7/INPUT/mapping/hg38/Luco_20_S20_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150" ,
+	 			"color-down" : "#73e566", 
+				"color-up" : "#ffb3b3",
+				"color-neutral": "#bfbfbf" ,
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/unT7/INPUT/mapping/hg38/Luco_20_S20_R1_001.sorted.removed.marked.bam"
+				 }
+
+		     },
+
+		"K27AC_T1": 
+			{ 
+				"Rep1": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T1/K27AC_rep1/mapping/hg38/Luco_13_S13_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150" ,
+	 			"color-down" : "#33ff33", 
+				"color-up" : "#ff3333",
+				"color-neutral": "#bfbfbf",
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T1/K27AC_rep1/mapping/hg38/Luco_13_S13_R1_001.sorted.removed.marked.bam"
+				 },
+				"Rep2": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T1/K27AC_rep3/mapping/hg38/Luco_14_2_S14_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150",
+	 			"color-down" : "#33ff33", 
+				"color-up" : "#ff3333",
+				"color-neutral": "#bfbfbf",
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T1/K27AC_rep3/mapping/hg38/Luco_14_2_S14_R1_001.sorted.removed.marked.bam"
+				},
+				"Control": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T1/INPUT/mapping/hg38/Luco_19_S19_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150" ,
+	 			"color-down" : "#33ff33", 
+				"color-up" : "#ff3333",
+				"color-neutral": "#bfbfbf",
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T1/INPUT/mapping/hg38/Luco_19_S19_R1_001.sorted.removed.marked.bam"
+				 }
+
+		     },
+
+		"K27AC_T7": 
+			{ 
+				"Rep1": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T7/K27AC_rep1/mapping/hg38/Luco_17_S17_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150" ,
+	 			"color-down" : "#008000", 
+				"color-up" : "#800000",
+				"color-neutral": "#bfbfbf",
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T7/K27AC_rep1/mapping/hg38/Luco_17_S17_R1_001.sorted.removed.marked.bam"
+				 },
+				"Rep2": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T7/K27AC_rep3/mapping/hg38/Luco_18_2_S18_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150",
+	 			"color-down" : "#008000", 
+				"color-up" : "#800000",
+				"color-neutral": "#bfbfbf",
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T7/K27AC_rep3/mapping/hg38/Luco_18_2_S18_R1_001.sorted.removed.marked.bam"
+				},
+				"Control": 
+				{ 
+			 	"bam": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T7/INPUT/mapping/hg38/Luco_21_S21_R1_001.sorted.marked.bam",
+				"fragmentSize" : "150",
+	 			"color-down" : "#008000", 
+				"color-up" : "#800000",
+				"color-neutral": "#bfbfbf",
+				"bam-DupRemoved": "/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/T7/INPUT/mapping/hg38/Luco_21_S21_R1_001.sorted.removed.marked.bam"
+				 }
+
+		     }
+
+
+	       }
+
+}

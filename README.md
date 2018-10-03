@@ -96,6 +96,13 @@ The main pipeline do all alignments for fastq files. It produces also fastqc, wi
 
 In the directory of you condition of interest you must then run : ( Use first --dryrun, -n to see if there is no error in output)
 
+Also you need to be in python2 environment. (snakemake not working in python3)
+
+So you need to do first :
+```shell
+	source activate python2
+```
+
 Dry Run : 
 
 ```shell
@@ -114,18 +121,25 @@ Control with htop -u username and look into nohup.out file to see if job is fini
 
 At the end of this part, you should have bam, bigwig and file containing peaks calling.
 
+
 ---
 
 ## Multiqc
 
 Using all fastqc, you can produce a multiqc wich is a resume of all fastqc produced. Before doint thant you can do a few things to get informations about duplicates.  
-You can mark duplicates inside all the bams generated using picard tools.  
-You can retrieve interesting values that let you plot bargraph with the number of reads mapped, number of reads withtout replicates, etc...see graph below.
+You can mark duplicates inside all the bams generated using picard tools.  This is necesseray for the next part when you want to plot a mean signal between replicates whitout replicates reads. 
+
+
+**This step is mandatory if you want to create next bigwig with mean signal without duplicates.**
 
 ```shell
 #MarkDuplicate
 find /pathTo/condition -name *.sorted.bam  | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.marked.bam} M=${0/.bam/.marked_dup_metrics.txt} VALIDATION_STRINGENCY=LENIENT' {} \;
+```
 
+These commands are optionnal but if you chose to go further, you can then retrieve interesting values that let you plot bargraph with the number of reads mapped, number of reads withtout replicates, etc...see graph below.
+
+```shell
 # Flagstat All
 find /pathTo/condition -name *.sorted.marked.bam   | xargs -I{} bash -c 'samtools flagstat $0 > ${0/.sorted.marked.bam/.sorted.marked.bash2.txt}' {} \;
 
@@ -166,6 +180,23 @@ Rscript multibarplot.R --file=PathToTheMatriceFile**
 
 You can also use this script to plot Number of Raw ChipSeq Peaks, Number of Differentially Bound Histones. (Modify the input file accordingly)
 
+## Normalise tracks
+
+I uploaded this part just for record of the methodology I used for the mean track in ucsc browser. It's not automated and path need to be changes, reference files need to be provided, etc, etc....
+
+This has been added to have only one track per mark. 
+We used to add each replicates and input in browser. 
+Here we are doing one track using mean of replicates removing the input signal signal to normalise.
+
+The script is using a json configuration file. It's also plotting profile around TSS for differentialy expressed gene. So you need to provide bed files for TSS of upregulated genes and TSS of downregulated genes.
+
+**Here we are just interested in creating the mean track, you so can provide fake bed files.**   
+
+```shell
+python3 /home/jean-philippe.villemin/code/RNA-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/K27AC.json 
+```
+
+
 ## ChipQC
 
 First you need to create a samplesheet containing all path to your samples. see( ChipQC ,DiffBind,Doc )
@@ -202,76 +233,3 @@ Rscript chipDiffBind.R --file=/pathTO/ALL_MarkedDup -n 3 -m K27AC -p 0.99
 **NB** : Don't use the .Rdata extension
 
 Description of output : TODO
-
-
-## ChipSeq & Splicing
-
-You have to use *merge.splicing.fromRMATS.sh* on each events to create a cleaned & merged list for each of splicing events.  
-
-```shell
-merge.splicing.fromRMATS.sh SE
-merge.splicing.fromRMATS.sh RI
-merge.splicing.fromRMATS.sh MXE
-merge.splicing.fromRMATS.sh A5SS 
-merge.splicing.fromRMATS.sh A3SS 
-```
-
-Then you can apply on these cleaned bed list, the following script , it will count how many differents events you have per condition.  
-
-```shell
-Rscript splicing.R --file1=RMATS/SE/EARLY.bed --file2=RMATS/MXE/EARLY.bed --file3=RMATS/RI/EARLY.bed --file4=RMATS/A5SS/EARLY.bed --file5=RMATS/A3SS/EARLY.bed
-
-​Rscript splicing.R --file1=RMATS/SE/LATE.bed --file2=RMATS/MXE/LATE.bed --file3=RMATS/RI/LATE.bed --file4=RMATS/A5SS/LATE.bed --file5=RMATS/A3SS/LATE.bed​
-```
-Finally , you  intersect peak from chipSeq with splicing Event. You intersect histone differentially bound in Early condition with splicing events detected in Early.( respectively histone bound differentially bound in LATE with splicing events detected in LATE) :   
-
-```shell
-bedtools intersect -wo -a CHIPSEQ_2017_1_ALL/ChIPQC/${MARK}/dba_EVERYTHING_MarkedDupConsensus500.${MARK}.${TIMEPOINT}.bed -b workspace/beds/exon/met/${EVENT}/*${STATUS}.bed -filenames > data/workspace/beds/results/clean/${MARK}.${TIMEPOINT}.hg38.vs.ExonEMT.${EVENT}.${STATUS}.bed
-```
-
-where following parameters can be :  
-
-${STATUS}=LATE,EARLY  
-${MARK}=Name of your mark (K27ME3,K4ME3...)  
-${TIMEPOINT}=T1_vs_UnT7,T7_vs_UnT7  
-${EVENT}=SE,RI,A3SS,A5SS  
-
-Once you have done this for all the events , condition and marks. You can merge them into one file keeping  on each line the name of the file from where they are extracted. Indeed, you will easily retrieve condition, event and name of you mark.  
-
-```shell
-find . -type f | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes.tsv
-```
-You can count how many elements you have by condition and type of splicing events.
-```shell
-Rscript countOverlap --file=BigOverlapFile.csv
-```
-
-You can reformat the output and then plot histogram using *multibarplot.R* ( Need to modify hardcoded values because I used this script several times with a bunch of differents values).  
-Input file should look like this:  
-
-| Sample |	A3SS |	A5SS |	MXE |	RI |	SE |
-| ---   | --- | --- | --- | --- | --- |
-| K27AC | 77 | 1256 | 75224143 | 683 | 627 | 
-| K4ME1 | 675 | 4958 | 644 | 1765 | 1484 | 
-| K79ME2 | 8532 | 38 | 834 | 5004 | 4804 | 
-
-You can separate again the file in several files per histone mark.
-
-
-```shell
-find . -type f -name "*K36ME3*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K36ME3.tsv
-find . -type f -name "*K4ME3*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K4ME3.tsv
-find . -type f -name "*K4ME1*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K4ME1.tsv
-find . -type f -name "*K20ME1*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K20ME1.tsv
-find . -type f -name "*K79ME2*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K79ME2.tsv
-find . -type f -name "*K27AC*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K27AC.tsv
-find . -type f -name "*K27ME3*" | xargs -i echo {}|sed -r 's#(.\/)(.*)#cat &\|sed  "s:^: \2\t:g"#ge' > ../genes_K27ME3.tsv
-```
-
-This is useful if you want to plot a scatterplot per histone mark between dpsi and peakfold as follows :
-
-```shell
-Rscript scatter.R --file=input.csv
-```
-
-![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/scatter.png)
