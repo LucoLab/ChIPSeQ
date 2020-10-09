@@ -2,20 +2,17 @@
 
 ---
 
-Here we describe the different steps involved in the analysis of ChipSEQ in the laboratory.  
-
-This tutorial goal is to make people understand how the raw data has been processed in the team (tools and workflow) and to help them to reproduce analysis.
+Update [here](https://github.com/LucoLab/ChIPSeQ/blob/master/README_update.md)
 
 
 ---
 
-1. Set up Environment
+1. Set up Environment - _You don't care !_
 2. Set up directories structure and config file
 3. Launch Main pipeline
-4. Multiqc (marking duplicates and plot number of mapped reads)
+4. Multiqc (marking duplicates and plot number of mapped reads) - _You don't care !_
 7. ChipQC
 8. DiffBinding and Peak annotation
-9. ChipSeq & Splicing
 
 ## Set up Environment
 
@@ -56,24 +53,27 @@ _**rtracklayer**_ : Very usefull to export/import bed to Grange objects. [here](
 
 _**ComplexHeatmap**_ : Plot heatmap. [here](https://bioconductor.org/packages/release/bioc/html/ComplexHeatmap.html)
 
-Other packages are mandatory. biomaRt, GenomicFeatures ,stringr, reshape , ggplot2, optparse , knitr ... Look inside R scripts to know what to install.
+Other packages are mandatory. biomaRt, GenomicFeatures,stringr, reshape , ggplot2, optparse , knitr ... Look inside R scripts to know what to install.
 
 ## Set up directories structure and config file
 
 ---
 
-Analyse is based on snakemake pipeline provided by Raoul Raffel @t IGH,Montpellier.
+Snakemake pipeline provided by Raoul Raffel @t IGH,Montpellier.
 
 Directory aborescence need to be strictly the same.
 
-One directory per condition. Several histone marks are inside these directories.
+One directory per condition. Several histone marks are inside these directories. A _raw_data_ directory where you put fastq files.
 
 Inside this directory, you will set up directories for input raw data and for each replicate of histone marks as followed : 
 ![ChipSeqDir](https://github.com/ZheFrenchKitchen/pics/blob/master/chipSeqDir.png)
 
-As you can see in the picture, you also have in this directory the script and its config file.
+You also have in this directory the script and its config file.
 
-In directories for the replicates only (not input), you need to place your raw data in _raw_data_ directory. Raw data must be formated as follows _file.fq.gz_.
+Raw fastq must be formated as follows _file.fq.gz_. 
+
+**NB** : Due to a bug in CTCF and K9AC files. fastq_illumina_filter doesn't work.See ![here](https://github.com/lh3/seqtk/issues/3)
+To bypass that, rename the file as _file.filtred.fq.gz_.
 
 **NB1** : If you received different files for one replicate, you need to merge them into one, with a command line like : 
 
@@ -85,23 +85,10 @@ Then, you need to configure your yaml configuration file. See provided example.
 
 You need to change filepaths,filenames accordingly to your data & environment.
 
-**NB2** : In script, there is hard coded path, you need to manually change in code "--tempdir /home/jean-philippe.villemin/tmp_deeptools/ ". Create a dir wherever you want and change in the code.
-This is used by deeptools to write temporary files...
-
-**NB3** : You need to download Rscripts in dependencies dir from github. Set up paths in configfile. Same has to be done for the bedfile with exons used to do heatmaps and other QC stuffs. Exons were randomly selected. You can provide your own list.
 
 ## Launch Main Pipeline
 
-The main pipeline do all alignments for fastq files. It produces also fastqc, wig files for visualisation and finally it will gives us the peaks calling files. Other stuffs are done but are less important to continue the tutorial.
-
-In the directory of you condition of interest you must then run : ( Use first --dryrun, -n to see if there is no error in output)
-
-Also you need to be in python2 environment. (snakemake not working in python3)
-
-So you need to do first :
-```shell
-	source activate python2
-```
+The main pipeline do all alignments for fastq files. It produces also fastqc, wig files for visualisation and finally it will gives us the peaks calling files. Other stuffs are done but you don't care.
 
 Dry Run : 
 
@@ -109,7 +96,7 @@ Dry Run :
 	snakemake -s pipeline_chip-seq.Snakefile.py -j 16 -k -n --verbose -p
 ```
 
-Real Run (nohup make the script runs in background.Note the ampersand at the end.): 
+Real Run (nohup make the script runs in background. Note the ampersand at the end.): 
 
 ```shell
 	nohup snakemake -s pipeline_chip-seq.Snakefile.py -j 16 -k --verbose -p &
@@ -119,7 +106,6 @@ Control with htop -u username and look into nohup.out file to see if job is fini
 
 **NB4** : You can relaunch script if you find something went wrong.It will execute only part that failed. Fastqc will be done again (whereas fastqc analysis has already be done with sucess) because of a bug I didn't manage to correct.
 
-At the end of this part, you should have bam, bigwig and file containing peaks calling.
 
 
 ---
