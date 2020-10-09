@@ -73,7 +73,7 @@ You also have in this directory the script and its config file.
 Raw fastq must be formated as follows _file.fq.gz_. 
 
 **NB** : Due to a bug in CTCF and K9AC files. fastq_illumina_filter doesn't work.See ![here](https://github.com/lh3/seqtk/issues/3)
-To bypass that, rename the file as _file.filtred.fq.gz_.
+To bypass that, rename the file as _file.filtered.fq.gz_.
 
 **NB1** : If you received different files for one replicate, you need to merge them into one, with a command line like : 
 
