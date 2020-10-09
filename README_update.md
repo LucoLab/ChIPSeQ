@@ -2,10 +2,10 @@
 # ChIPSeQ -  Update Christmas 2019
 
 ## Go on Archive
-cd /home/luco/mount_archive2/commun.luco/EMT_2015_SEQ_data/EMT_CHIPSEQ_FILES/
-mkdir 2019
+cd /home/luco/mount_archive2/commun.luco/EMT_2015_SEQ_data/EMT_CHIPSEQ_FILES/ 
+mkdir 2019 
 cd 2019
-
+ 
 ## Download 
  wget -r -np -bqc -nd -nc --user S19296 --password Zu1XybIssqIuXdR4N0GF ftp://ngs.igbmc.fr/191212_K00201_0377_AHGHY5BBXY_HS597
 
