@@ -160,6 +160,8 @@ Only things you need to change are the path to bam files.( "bam" & bam-DupRemove
 
 First you need to create a samplesheet containing all path to your samples. see( ChipQC ,DiffBind,Doc )
 
+You will find an example here : /home/jean-philippe.villemin/disciplussimplex/TEST_CHIPSEQ/samplestest.csv  
+
 ![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/Listing.png)
 
 You will use this file to create an R object saved on disk that will be used by the next step.
