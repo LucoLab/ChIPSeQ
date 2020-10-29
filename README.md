@@ -14,6 +14,11 @@ Update [here](https://github.com/LucoLab/ChIPSeQ/blob/master/README_update.md)
 7. ChipQC
 8. DiffBinding and Peak annotation
 
+You will the last version of this code here :  
+
+/home/jean-philippe.villemin/disciplussimplex/TEST_CHIPSEQ/
+
+Each time you use this pipeline, you need to copy/paste it in a new directory with a config file.
 
 
 ## Set up directories structure and config file
