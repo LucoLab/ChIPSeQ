@@ -7,12 +7,12 @@ Update [here](https://github.com/LucoLab/ChIPSeQ/blob/master/README_update.md)
 
 ---
 
-1. Set up Environment - _You don't care !_
-2. Set up directories structure and config file
-3. Launch Main pipeline
-4. Multiqc (marking duplicates and plot number of mapped reads) - _You don't care !_
-7. ChipQC
-8. DiffBinding and Peak annotation
+1. Set up directories structure and config file
+2. Launch Main pipeline
+3. Multiqc (marking duplicates and plot number of mapped reads) - _You don't care !_
+4. ChipQC
+5. DiffBinding and Peak annotation
+6. Set up Environment - _You don't care !_
 
 You will the last version of this code here :  
 
@@ -189,9 +189,9 @@ library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 
 _**NB**_ : Index .bai must be created before. Very important.
 
-
+<!-- 
 ![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/chipQC.png)
-
+-->
 ## DiffBinding and Peak annotation
 
 Here you will test a variation of binding between condition using R object output (name ALL_MarkedDup in this example) from the step before.  
@@ -207,6 +207,8 @@ Rscript chipDiffBind.R --file=/pathTO/ALL_MarkedDup -n 3 -m K27AC -p 0.99
 **NB** : Don't use the .Rdata extension
 
 Description of output : TODO
+
+
 
 ---
 
