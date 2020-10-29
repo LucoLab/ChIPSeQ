@@ -145,6 +145,13 @@ The script is using a json configuration file. It's also plotting profile around
 python3 /home/jean-philippe.villemin/code/RNA-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/K27AC.json 
 ```
 
+Other example :  
+
+```shell
+python3 /home/jean-philippe.villemin/code/RNA-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/POL2_T7.json 
+```
+
+
 
 ## ChipQC
 
