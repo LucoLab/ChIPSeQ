@@ -151,6 +151,7 @@ Other example :
 python3 /home/jean-philippe.villemin/code/RNA-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/POL2_T7.json 
 ```
 
+NB : Lot of things in json you don't care. Only things you need to change are the path to bam files.( "bam" & bam-DupRemoved" for Rep1,Rep2,Control)
 
 
 ## ChipQC
