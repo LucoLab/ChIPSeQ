@@ -14,46 +14,7 @@ Update [here](https://github.com/LucoLab/ChIPSeQ/blob/master/README_update.md)
 7. ChipQC
 8. DiffBinding and Peak annotation
 
-## Set up Environment
 
----
-
-First you need to check that the following tools are installed on server/computer.
-
-_**Deeptools**_ : Tool to handle deepsequencing files [here](https://deeptools.github.io/)
-
-_**Macs2**_ : Peak Caller [here](https://github.com/taoliu/MACS)
-
-_**wigToBigWig**_ : Include in KentTools suite [here](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads)
-
-It's advised to install Conda.   
-It will make things easier then for installing tools. (snakemake for example)
-
-_**Conda**_ : [here](https://www.continuum.io/downloads)
-
-_**snakemake**_ : Evil framework for pipeline in python [here](http://snakemake.readthedocs.io/en/stable/getting_started/installation.html)
-
-_**WiggleTools**_ : _Optionnal_ , can be useful when you want to merge bigwig files and apply some basic numerical operations [here](https://github.com/Ensembl/WiggleTools)
-
-_**SPP**_ : Need to be there but you don't care [here](https://github.com/hms-dbmi/spp)
-
-_**MaSC**_ : Need to be there but you don't care [here](http://www.perkinslab.ca/pubs/RPPP2012.html)
-
-_**R3.3.1**_ : A lot of packages are used ... It's adviced to read their docs.
-
-_**ChipQC**_ : Control Quality for peaks. Object created will be used then with ChIPQC for Differential binding [here](https://bioconductor.org/packages/release/bioc/html/ChIPQC.html)
-
-_**DiffBind**_ : Differential binding analysis. Which peaks are moving in my samples ? [here](https://bioconductor.org/packages/release/bioc/html/DiffBind.html)
-
-_**ChIPpeakAnno**_ : Anotation of the peaks in a genomic context [here](https://bioconductor.org/packages/release/bioc/html/ChIPpeakAnno.html)
-
-_**ChIPseeker**_ : Used for a derived upset peaks graph counting how much peaks are annotated in one or other features. [here](https://bioconductor.org/packages/release/bioc/html/ChIPseeker.html)
-
-_**rtracklayer**_ : Very usefull to export/import bed to Grange objects. [here](http://bioconductor.org/packages/release/bioc/html/rtracklayer.html)
-
-_**ComplexHeatmap**_ : Plot heatmap. [here](https://bioconductor.org/packages/release/bioc/html/ComplexHeatmap.html)
-
-Other packages are mandatory. biomaRt, GenomicFeatures,stringr, reshape , ggplot2, optparse , knitr ... Look inside R scripts to know what to install.
 
 ## Set up directories structure and config file
 
@@ -110,18 +71,13 @@ Control with htop -u username and look into nohup.out file to see if job is fini
 
 ---
 
+
+<!-- 
 ## Multiqc
 
 Using all fastqc, you can produce a multiqc wich is a resume of all fastqc produced. Before doint thant you can do a few things to get informations about duplicates.  
 You can mark duplicates inside all the bams generated using picard tools.  This is necesseray for the next part when you want to plot a mean signal between replicates whitout replicates reads. 
 
-
-**This step is mandatory if you want to create next bigwig with mean signal without duplicates.**
-
-```shell
-#MarkDuplicate
-find /pathTo/condition -name *.sorted.bam  | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.marked.bam} M=${0/.bam/.marked_dup_metrics.txt} VALIDATION_STRINGENCY=LENIENT' {} \;
-```
 
 These commands are optionnal but if you chose to go further, you can then retrieve interesting values that let you plot bargraph with the number of reads mapped, number of reads withtout replicates, etc...see graph below.
 
@@ -165,8 +121,15 @@ Rscript multibarplot.R --file=PathToTheMatriceFile**
 ```
 
 You can also use this script to plot Number of Raw ChipSeq Peaks, Number of Differentially Bound Histones. (Modify the input file accordingly)
-
+-->
 ## Normalise tracks
+
+**This step is mandatory if you want to create next bigwig with mean signal without duplicates.**
+
+```shell
+#MarkDuplicate
+find /pathTo/condition -name *.sorted.bam  | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.marked.bam} M=${0/.bam/.marked_dup_metrics.txt} VALIDATION_STRINGENCY=LENIENT' {} \;
+```
 
 I uploaded this part just for record of the methodology I used for the mean track in ucsc browser. It's not automated and path need to be changes, reference files need to be provided, etc, etc....
 
@@ -201,15 +164,23 @@ Option -n is used to say what is the name of the Rboject saved.
 Rscript chipQC.R --file /pathTO/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
 ```
 
-![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/chipQC.png)
+You can find it here : /home/jean-philippe.villemin/code/CHIP-SEQ/R/  
 
+_**NB**_ : I loaded the library at the beginning. It call hg38. (if you work on mouse, you will have to change hard coded stuffs)
+
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+
+_**NB**_ : Index .bai must be created before. Very important.
+
+
+![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/chipQC.png)
 
 ## DiffBinding and Peak annotation
 
 Here you will test a variation of binding between condition using R object output (name ALL_MarkedDup in this example) from the step before.  
 Option -n is used to say the number of conditions.  
 Option -m is used to say which marks from your sample you want to analyze.
-Option -p is used to say percentage at least used to retrieve peaks in all you samples. minOverlap (peakset parameter in diffbind) only include peaks in at least this many peaksets in the main binding matrix.If minOverlap is between zero and one,
+Option -p is used to say percentage at least used to retrieve peaks in all you samples. minOverlap (peakset parameter in diffbind) only include peaks in at least this many peaksets in the main binding matrix.If minOverlap is between zero and one, (Don't change 0.99)
 peak will be included from at least this proportion of peaksets.  
 You will do that for each mark you want to analyse in your sampleshit.
 
@@ -219,3 +190,47 @@ Rscript chipDiffBind.R --file=/pathTO/ALL_MarkedDup -n 3 -m K27AC -p 0.99
 **NB** : Don't use the .Rdata extension
 
 Description of output : TODO
+
+---
+
+## Set up Environment
+
+---
+
+First you need to check that the following tools are installed on server/computer.
+
+_**Deeptools**_ : Tool to handle deepsequencing files [here](https://deeptools.github.io/)
+
+_**Macs2**_ : Peak Caller [here](https://github.com/taoliu/MACS)
+
+_**wigToBigWig**_ : Include in KentTools suite [here](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads)
+
+It's advised to install Conda.   
+It will make things easier then for installing tools. (snakemake for example)
+
+_**Conda**_ : [here](https://www.continuum.io/downloads)
+
+_**snakemake**_ : Evil framework for pipeline in python [here](http://snakemake.readthedocs.io/en/stable/getting_started/installation.html)
+
+_**WiggleTools**_ : _Optionnal_ , can be useful when you want to merge bigwig files and apply some basic numerical operations [here](https://github.com/Ensembl/WiggleTools)
+
+_**SPP**_ : Need to be there but you don't care [here](https://github.com/hms-dbmi/spp)
+
+_**MaSC**_ : Need to be there but you don't care [here](http://www.perkinslab.ca/pubs/RPPP2012.html)
+
+_**R3.3.1**_ : A lot of packages are used ... It's adviced to read their docs.
+
+_**ChipQC**_ : Control Quality for peaks. Object created will be used then with ChIPQC for Differential binding [here](https://bioconductor.org/packages/release/bioc/html/ChIPQC.html)
+
+_**DiffBind**_ : Differential binding analysis. Which peaks are moving in my samples ? [here](https://bioconductor.org/packages/release/bioc/html/DiffBind.html)
+
+_**ChIPpeakAnno**_ : Anotation of the peaks in a genomic context [here](https://bioconductor.org/packages/release/bioc/html/ChIPpeakAnno.html)
+
+_**ChIPseeker**_ : Used for a derived upset peaks graph counting how much peaks are annotated in one or other features. [here](https://bioconductor.org/packages/release/bioc/html/ChIPseeker.html)
+
+_**rtracklayer**_ : Very usefull to export/import bed to Grange objects. [here](http://bioconductor.org/packages/release/bioc/html/rtracklayer.html)
+
+_**ComplexHeatmap**_ : Plot heatmap. [here](https://bioconductor.org/packages/release/bioc/html/ComplexHeatmap.html)
+
+Other packages are mandatory. biomaRt, GenomicFeatures,stringr, reshape , ggplot2, optparse , knitr ... Look inside R scripts to know what to install.
+
