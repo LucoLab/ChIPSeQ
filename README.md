@@ -174,8 +174,8 @@ Only things you need to change are the path to bam files.( "bam" , bam-DupRemove
 ## ChipQC
 
 The next step are based on ChipQC and DiffBind R packages. You need to do chipQC to do differential binding.
-![Infos about parameters of chipqc](https://bioconductor.org/packages/release/bioc/vignettes/ChIPQC/inst/doc/ChIPQC.pdf)
-![Infos about parameters diffbind](https://bioconductor.org/packages/devel/bioc/vignettes/DiffBind/inst/doc/DiffBind.pdf)
+[Infos about parameters of chipqc](https://bioconductor.org/packages/release/bioc/vignettes/ChIPQC/inst/doc/ChIPQC.pdf)
+[Infos about parameters diffbind](https://bioconductor.org/packages/devel/bioc/vignettes/DiffBind/inst/doc/DiffBind.pdf)
 
 First you need to create a samplesheet containing all path to your samples. see( ChipQC ,DiffBind,Doc )
 
