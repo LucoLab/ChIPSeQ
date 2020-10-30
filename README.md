@@ -230,7 +230,7 @@ No filter is applied on the fold or the p-value. You will find that in the 4th c
 
 >chr10	73910795	73916597	2623_NearestLocation_inside_ENSG00000122861_proteincoding_PLAU_6.91_20.9030899869919_+_4519_900	0	.  
 
->chrom start end IDPeak_fromOverlappingOrNearest_insideFeature_Feature_gene_biotype_hgnc_symbo_Fold_log10(p-value)_strand_distancetoFeature_shortestDistance
+>chrom start end IDPeak_fromOverlappingOrNearest_insideFeature_Feature_genebiotype_symbol_Fold_log10(p-value)_strand_distancetoFeature_shortestDistance
 
 
 [Annotation comes from chipeakAnno](https://bioconductor.org/packages/release/bioc/html/ChIPpeakAnno.html)  
