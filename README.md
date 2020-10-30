@@ -38,8 +38,9 @@ You also have in this directory the script and its config file.
 
 Raw fastq must be formated as follows _file.fq.gz_. 
 
-**NB** : Due to a bug in CTCF and K9AC files. fastq_illumina_filter doesn't work.See ![here](https://github.com/lh3/seqtk/issues/3)
-To bypass that, rename the file as _file.filtered.fq.gz_.
+**NB** : Due to a bug in CTCF and K9AC files. fastq_illumina_filter doesn't work. See ![here](https://github.com/lh3/seqtk/issues/3)
+To bypass that, rename the file as _file.filtered.fq.gz_. Or you can remove the spaces by yourself and still do this filtering (sed 's/^$/N/'
+> newfile.fa) .
 
 **NB1** : If you received different files for one replicate, you need to merge them into one, with a command line like : 
 
@@ -54,28 +55,36 @@ You need to change filepaths,filenames accordingly to your data & environment.
 
 ## Launch Main Pipeline
 
-The main pipeline do all alignments for fastq files. It produces also fastqc, wig files for visualisation and finally it will gives us the peaks calling files. Other stuffs are done but you don't care.
+The main pipeline do all alignments for fastq files. It produces also fastqc, wig files for visualisation and finally it will gives us the peaks calling files. Other stuffs are done but you don't care. (the fastqc produces MissingOutputException...but it works don't worry)
 
-Dry Run : 
+Dry Run ( can be useful to see the set of commands that will be done): 
+
+>- n : is drymode  
+>- p : p is for print (...)  
+>- j : number of cores  
+
 
 ```shell
 	snakemake -s pipeline_chip-seq.Snakefile.py -j 16 -k -n --verbose -p
 ```
 
-Real Run (nohup make the script runs in background. Note the ampersand at the end.): 
+Real Run (nohup make the script runs in background. Note the ampersand at the end to go back in the shell.): 
 
 ```shell
 	nohup snakemake -s pipeline_chip-seq.Snakefile.py -j 16 -k --verbose -p &
 ```
 
 Control with htop -u username and look into nohup.out file to see if job is finished.
+nohup.out is a file created with all the commands, errors that can occurs, it's a log file.  
 
 **NB4** : You can relaunch script if you find something went wrong.It will execute only part that failed. Fastqc will be done again (whereas fastqc analysis has already be done with sucess) because of a bug I didn't manage to correct.
+computeMatrix_ref_point, computeMatrix_ref_point failed but you don't care because we don't use their output.
 
+**NB5** : Don't use the normalise bigwig create here. You can use bigwig for replicates normalised by RPKM but not taking account of the input.
 
+Description of output : You should know them since 3 years.
 
 ---
-
 
 <!-- 
 ## Multiqc
@@ -131,57 +140,64 @@ You can also use this script to plot Number of Raw ChipSeq Peaks, Number of Diff
 
 **This step is mandatory if you want to create next bigwig with mean signal without duplicates.**
 
+# Mark Duplicates
 ```shell
 #MarkDuplicate
 find /pathTo/condition -name *.sorted.bam  | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.marked.bam} M=${0/.bam/.marked_dup_metrics.txt} VALIDATION_STRINGENCY=LENIENT' {} \;
 ```
 
-I uploaded this part just for record of the methodology I used for the mean track in ucsc browser. It's not automated and path need to be changes, reference files need to be provided, etc, etc....
+# Remove Duplicates
+```shell
+find /pathTo/condition -name *.sorted.bam   | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.removed.marked.bam} M=${0/.bam/.sorted.removed.marked_dup_metrics.txt} REMOVE_DUPLICATES=TRUE VALIDATION_STRINGENCY=LENIENT' {} \;
+```
 
 This has been added to have only one track per mark. 
-We used to add each replicates and input in browser. 
 Here we are doing one track using mean of replicates removing the input signal signal to normalise.
 
-The script is using a json configuration file. It's also plotting profile around TSS for differentialy expressed gene. So you need to provide bed files for TSS of upregulated genes and TSS of downregulated genes.
+The script is using a json configuration file. It's also plotting profile around TSS for differentialy expressed gene. So you need to provide bed files for TSS of upregulated genes and TSS of downregulated genes. You can use the old bed I set in the config. This is not the main purpose of the script but I didn't removed this part to it's still trying to plot stuff but your are only instered in the bigwig normalised.
+
+
+So here you need to create a json file. See --config parameter to retrieve an example file.  
 
 **Here we are just interested in creating the mean track, you so can provide fake bed files.**   
 
-```shell
-python3 /home/jean-philippe.villemin/code/RNA-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/K27AC.json 
-```
-
-Other example :  
+Example :  
 
 ```shell
-python3 /home/jean-philippe.villemin/code/RNA-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/POL2_T7.json 
+python3 /home/jean-philippe.villemin/code/CHIP-SEQ/src/deeptools_countsignal.py --config=/home/jean-philippe.villemin/code/configs/HEATMAP_HISTONE/tss_by_DGE_NODUP/POL2_T7.json 
 ```
 
 _**NB**_ : Lot of things in json you don't care.  
-Only things you need to change are the path to bam files.( "bam" & bam-DupRemoved" for Rep1,Rep2,Control)
-
+Only things you need to change are the path to bam files.( "bam" , bam-DupRemoved"  and 'path_to_output' for Rep1,Rep2,Control)
 
 
 ## ChipQC
 
+The next step are based on ChipQC and DiffBind R packages. You need to do chipQC to do differential binding.
+![Infos about parameters of chipqc](https://bioconductor.org/packages/release/bioc/vignettes/ChIPQC/inst/doc/ChIPQC.pdf)
+![Infos about parameters diffbind](https://bioconductor.org/packages/devel/bioc/vignettes/DiffBind/inst/doc/DiffBind.pdf)
+
 First you need to create a samplesheet containing all path to your samples. see( ChipQC ,DiffBind,Doc )
 
-You will find an example here : /home/jean-philippe.villemin/disciplussimplex/TEST_CHIPSEQ/samplestest.csv  
+You will find an example here : 
+
+>/home/jean-philippe.villemin/disciplussimplex/TEST_CHIPSEQ/samplestest.csv
+>/home/jean-philippe.villemin/CHIPSEQ_2017_1_ALL/samplesChipMarks.csv
 
 ![Quality](https://github.com/ZheFrenchKitchen/pics/blob/master/Listing.png)
 
 You will use this file to create an R object saved on disk that will be used by the next step.
 This step is creating a first report with quality controls.
 
-
 You can use *consensus* methodology where ChIPQC is done using consensus length around peak summit. With this approach, you will also have input signal plotted for interval you defined around peak summits with option -s .  
-Option -c is used to say you are using consenus methodology.  
-Option -n is used to say what is the name of the Rboject saved.  
+> Option -c is used to say you are using consenus methodology. (see docs) 
+> Option -n is used to say what is the name of the Rboject saved.  
 
 ```shell
 Rscript chipQC.R --file /pathTO/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
 ```
 
-You can find it here : /home/jean-philippe.villemin/code/CHIP-SEQ/R/  
+You can find it here : _**/home/jean-philippe.villemin/code/CHIP-SEQ/R/**_  
 
 _**NB**_ : I loaded the library at the beginning. It call hg38. (if you work on mouse, you will have to change hard coded stuffs)
 
@@ -195,20 +211,29 @@ _**NB**_ : Index .bai must be created before. Very important.
 ## DiffBinding and Peak annotation
 
 Here you will test a variation of binding between condition using R object output (name ALL_MarkedDup in this example) from the step before.  
-Option -n is used to say the number of conditions.  
-Option -m is used to say which marks from your sample you want to analyze.
-Option -p is used to say percentage at least used to retrieve peaks in all you samples. minOverlap (peakset parameter in diffbind) only include peaks in at least this many peaksets in the main binding matrix.If minOverlap is between zero and one, (Don't change 0.99)
-peak will be included from at least this proportion of peaksets.  
+>-n is used to say the number of conditions.  
+>-m is used to say which marks from your sample you want to analyze.
+>-p is used to say percentage at least used to retrieve peaks in all you samples. minOverlap (peakset parameter in diffbind) only include peaks in at least this many peaksets in the main binding matrix.If minOverlap is between zero and one, (Don't change 0.99, that means peaks must be in all samples.)Peak will be included from at least this proportion of peaksets.  
+
 You will do that for each mark you want to analyse in your sampleshit.
 
 ```shell
 Rscript chipDiffBind.R --file=/pathTO/ALL_MarkedDup -n 3 -m K27AC -p 0.99
 ```
-**NB** : Don't use the .Rdata extension
+**NB** : Don't use the .Rdata extension when you call the file.
 
-Description of output : TODO
+Description of the 2 outputs :
+
+**POL2.T1_vs_T7.bed :**
+
+>chr10	73910795	73916597	2623_NearestLocation_inside_ENSG00000122861_proteincoding_PLAU_6.91_20.9030899869919_+_4519_900	0	.
+
+**POL2.T1_vs_T7.diffPeaks.bed :**
+
+>chr10	73910795	73916597	2623	0	.
 
 
+All the packages that are used are listed below.
 
 ---
 
