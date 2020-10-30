@@ -140,13 +140,13 @@ You can also use this script to plot Number of Raw ChipSeq Peaks, Number of Diff
 
 **This step is mandatory if you want to create next bigwig with mean signal without duplicates.**
 
-# Mark Duplicates
+### Mark Duplicates
 ```shell
 #MarkDuplicate
 find /pathTo/condition -name *.sorted.bam  | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.marked.bam} M=${0/.bam/.marked_dup_metrics.txt} VALIDATION_STRINGENCY=LENIENT' {} \;
 ```
 
-# Remove Duplicates
+### Remove Duplicates
 ```shell
 find /pathTo/condition -name *.sorted.bam   | xargs -I{} bash -c 'java -jar /home/jean-philippe.villemin/bin/picard.2-6/picard.2-6.jar MarkDuplicates I=$0 O=${0/.sorted.bam/.sorted.removed.marked.bam} M=${0/.bam/.sorted.removed.marked_dup_metrics.txt} REMOVE_DUPLICATES=TRUE VALIDATION_STRINGENCY=LENIENT' {} \;
 ```
@@ -189,9 +189,9 @@ You will find an example here :
 You will use this file to create an R object saved on disk that will be used by the next step.
 This step is creating a first report with quality controls.
 
-You can use *consensus* methodology where ChIPQC is done using consensus length around peak summit. With this approach, you will also have input signal plotted for interval you defined around peak summits with option -s .  
+You can use *consensus* methodology where ChIPQC is done using consensus length around peak summit. With this approach, you will also have input signal plotted for interval you defined around peak summits with option -s.  
 > Option -c is used to say you are using consenus methodology. (see docs) 
-> Option -n is used to say what is the name of the Rboject saved.  
+> Option -n is used to say what is the name of the Robject saved.  
 
 ```shell
 Rscript chipQC.R --file /pathTO/samplesChipMarks.csv -n ALL_MarkedDup -s 500 -c
@@ -224,14 +224,27 @@ Rscript chipDiffBind.R --file=/pathTO/ALL_MarkedDup -n 3 -m K27AC -p 0.99
 
 Description of the 2 outputs :
 
-**POL2.T1_vs_T7.bed :**
+No filter is applied on the fold or the p-value. You will find that in the 4th column of the .bed.   
 
->chr10	73910795	73916597	2623_NearestLocation_inside_ENSG00000122861_proteincoding_PLAU_6.91_20.9030899869919_+_4519_900	0	.
+**POL2.T1_vs_T7.bed:**
+
+>chr10	73910795	73916597	2623_NearestLocation_inside_ENSG00000122861_proteincoding_PLAU_6.91_20.9030899869919_+_4519_900	0	.  
+
+>chrom start end IDPeak_fromOverlappingOrNearest_insideFeature_Feature_gene_biotype_hgnc_symbo_Fold_log10(p-value)_strand_distancetoFeature_shortestDistance
+
+
+[Annotation comes from chipeakAnno](https://bioconductor.org/packages/release/bioc/html/ChIPpeakAnno.html)  
+
+>fromOverlappingOrNearest: nearest: indicates this feature's start (feature's end for features at minus strand) is closest to the peak start;
+>insideFeature: upstream peak resides upstream of the feature; downstream: peak resides downstream of the feature; inside: peak resides inside the feature; overlapStart: peak overlaps with the start of the feature; overlapEnd: peak overlaps with the end of the feature; includeFeature: peak include the feature entirely
+>distancetoFeature: distance to the nearest feature such as transcription start site. By default, the distance is calculated as the distance between the start of the binding site and the TSS that is the gene start for genes located on the forward strand and the gene end for genes located on the reverse stran
+>shortestDistance: The shortest distance from either end of peak to either end the feature.
 
 **POL2.T1_vs_T7.diffPeaks.bed :**
 
 >chr10	73910795	73916597	2623	0	.
 
+**2623 is just the peak ID**
 
 All the packages that are used are listed below.
 
