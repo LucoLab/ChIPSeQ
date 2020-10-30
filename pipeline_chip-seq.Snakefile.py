@@ -45,7 +45,6 @@ use config.yml/(config.json) to choose what kind of heatmap/profile to make (TSS
 """
 import os
 import re
-
 import subprocess
 # get version of a tools i.e.:
 # i.e.: subprocess.getoutput("bamCoverage --version")
@@ -65,6 +64,7 @@ configfile: config_path
 ##################################
 #     DEFINE GLOBAL VARIABLES    #
 ##################################
+N_THREAD_MAX = config["max_threads"]
 
 # path to reference
 GENOMES  = config["genome"].keys()
@@ -129,7 +129,7 @@ for genome in config["intersect_peaks"].keys():
 
 DEFAULT_PARAMS = {
     "plot_type": {
-        "upstream" : "-2000",
+        "upstream" : "2000",
         "unscaled5prime" : "500",
         "regionBodyLength" : "2000",
         "unscaled3prime" : "500",
@@ -145,26 +145,40 @@ DEFAULT_PARAMS = {
     "bigWig":{
         "bin_size" : "10",
         "bin_smooth" : "30",
-        "centerReads" : "",                         #false/--centerReads==true
-        "ignoreForNormalization": "",               #chromosome to ignore
-        "ignoreDuplicates" : "--ignoreDuplicates",   #true
+        "centerReads" : "",              #false/--centerReads==true
+        "ignoreForNormalization": "",    #chromosome to ignore
+        "ignoreDuplicates" : "",         #False
         "minMappingQuality" : "20"
-        }
+        },
+    
 }
 
-for i in GENOMES:
-    if i not in config["default_config"].keys() : 
-        config["default_config"][i] = {}
-    for j in DEFAULT_PARAMS.keys():
-        if j not in config["default_config"][i].keys():
-            config["default_config"][i][j] = {}
-        for k in DEFAULT_PARAMS[j].keys():
-            if k not in config["default_config"][i][j].keys():
-                config["default_config"][i][j][k] = None
-            if config["default_config"][i][j][k] is None:
-                config["default_config"][i][j][k] = DEFAULT_PARAMS[j][k]
+if "distance_from_closest_peaks" not in config.keys():
+    config["distance_from_closest_peaks"]={}
+
+## Check if default parameter are specified in config file ##
+# else add default parameter in dict config
+
+if "default_config" in config:
+    DEFAULT_CONFIG = config["default_config"]
+else:
+    DEFAULT_CONFIG = {}
+
+for genome in GENOMES:
+    if genome not in config["default_config"].keys() : 
+        config["default_config"][genome] = DEFAULT_CONFIG
+    
+    for process in DEFAULT_PARAMS.keys():
+        if process not in config["default_config"][genome].keys():
+            config["default_config"][genome][process] = {}
+        for params in DEFAULT_PARAMS[process].keys():
+            if params not in config["default_config"][genome][process].keys():
+                config["default_config"][genome][process][params] = None
+            if config["default_config"][genome][process][params] is None:
+                config["default_config"][genome][process][params] = DEFAULT_PARAMS[process][params]
 
 #~ print(config["default_config"])
+
 #####################################
 #       FUNCTIONS DEFINITION        #
 #####################################
@@ -177,6 +191,10 @@ def is_empty_file(path):
 
 def simplify_list(A):
     return list(set().union(*A))
+
+
+
+
 
 ########################################################################
 #### TODO ####
@@ -226,14 +244,14 @@ rule all:
                 exp=EXP, 
                 genome=GENOMES, 
                 samples=DATA["IP"][EXP]["fastq"], 
-                suffix = ["peaks.narrowPeak", "control_lambda.bw", "treat_pileup.bw"])
+                suffix = ["peaks.narrowPeak", "peaks.narrowPeak.sort.bed.gz.tbi"])
                     for EXP in EXP_narrow],
         #broad peak
         [expand("{exp}/peak_calling/{genome}/broad/{samples}_{suffix}",
                 exp=EXP, 
                 genome=GENOMES, 
                 samples=DATA["IP"][EXP]["fastq"], 
-                suffix = ["peaks.broadPeak", "control_lambda.bw", "treat_pileup.bw"])
+                suffix = ["peaks.broadPeak", "peaks.broadPeak.sort.bed.gz.tbi"])
                     for EXP in EXP_broad],
                 
         #narrow peak _with fraglen
@@ -242,7 +260,7 @@ rule all:
                 genome=GENOMES, 
                 samples=DATA["IP"][EXP]["fastq"], 
                 fragLen = DATA["IP"][EXP]["peak_calling"]["params"]["fragLength"], 
-                suffix = ["peaks.narrowPeak", "control_lambda.bw", "treat_pileup.bw"])
+                suffix = ["peaks.narrowPeak", "peaks.narrowPeak.sort.bed.gz.tbi"])
                     for EXP in EXP_narrow_frag],
 
         #broad peak _with fraglen
@@ -251,10 +269,9 @@ rule all:
                 genome=GENOMES, 
                 samples=DATA["IP"][EXP]["fastq"], 
                 fragLen = DATA["IP"][EXP]["peak_calling"]["params"]["fragLength"], 
-                suffix = ["peaks.broadPeak", "control_lambda.bw", "treat_pileup.bw"])
+                suffix = ["peaks.broadPeak", "peaks.broadPeak.sort.bed.gz.tbi"])
                     for EXP in EXP_broad_frag],
                     
-
         ############################ heatmapper and profiler ############################
         #################################################################################
         #Heatmap and profile IP and Input(RPKM)
@@ -262,12 +279,14 @@ rule all:
                 exp=EXP, 
                 genome=GENOME, 
                 samples=DATA[cond][EXP]["fastq"], 
-                ancor = ANCOR, bed = config["plot_type"][GENOME][ANCOR], 
+                ancor = ANCOR,
+                bed = config["plot_type"][GENOME][ANCOR], 
                 plot_type = ["heatmap", "profile"])
                     for GENOME in config["plot_type"].keys() 
                         for ANCOR in config["plot_type"][GENOME].keys() 
                             for cond in ["input", "IP"] 
                                 for EXP in DATA[cond].keys()],
+
         #Heatmap and profile IP normalized by Input (ratio over input)
         [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.{plot_type}.png",
                 exp=EXP, 
@@ -312,8 +331,12 @@ rule all:
 
 
 
+########################################################################
 
 # target rules, part of rule all
+
+########################################################################
+
 rule QC:
     input:
         ############################### Quality Control ###############################
@@ -330,7 +353,60 @@ rule QC:
                 genome = GENOMES),
         expand("QC/{genome}/bamFingerprint.svg",
                 genome = GENOMES)
-rule heatmap:
+rule heatmap_norm:
+    input:
+        ############################ heatmapper ############################
+        ####################################################################
+        #Heatmap and profile IP and Input(RPKM)
+        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.{bed}.{ancor}.{plot_type}.png",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA[cond][EXP]["fastq"], 
+                ancor = ANCOR, bed = config["plot_type"][GENOME][ANCOR], 
+                plot_type = ["heatmap"])
+                    for GENOME in config["plot_type"].keys() 
+                        for ANCOR in config["plot_type"][GENOME].keys() 
+                            for cond in ["input"] 
+                                for EXP in DATA[cond].keys()],
+        #Heatmap and profile IP normalized by Input (ratio over input)
+        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.{plot_type}.png",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA["IP"][EXP]["fastq"], 
+                ancor = ANCOR, 
+                bed = config["plot_type"][GENOME][ANCOR], 
+                plot_type = ["heatmap"])
+                    for GENOME in config["plot_type"].keys() 
+                        for ANCOR in config["plot_type"][GENOME].keys() 
+                            for EXP in DATA["IP"].keys()]
+rule profiles_norm:
+    input:
+        ############################ profiler ############################
+        ##################################################################
+        #IP and Input(RPKM)
+        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.{bed}.{ancor}.{plot_type}.png",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA[cond][EXP]["fastq"], 
+                ancor = ANCOR, bed = config["plot_type"][GENOME][ANCOR], 
+                plot_type = ["profile"])
+                    for GENOME in config["plot_type"].keys() 
+                        for ANCOR in config["plot_type"][GENOME].keys() 
+                            for cond in ["input"] 
+                                for EXP in DATA[cond].keys()],
+        #IP normalized by Input (ratio over input)
+        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.{plot_type}.png",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA["IP"][EXP]["fastq"], 
+                ancor = ANCOR, 
+                bed = config["plot_type"][GENOME][ANCOR], 
+                plot_type = ["profile"])
+                    for GENOME in config["plot_type"].keys() 
+                        for ANCOR in config["plot_type"][GENOME].keys() 
+                            for EXP in DATA["IP"].keys()],
+
+rule heatmap_RPKM:
     input:
         ############################ heatmapper ############################
         ####################################################################
@@ -345,18 +421,8 @@ rule heatmap:
                         for ANCOR in config["plot_type"][GENOME].keys() 
                             for cond in ["input", "IP"] 
                                 for EXP in DATA[cond].keys()],
-        #Heatmap and profile IP normalized by Input (ratio over input)
-        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.{plot_type}.png",
-                exp=EXP, 
-                genome=GENOME, 
-                samples=DATA["IP"][EXP]["fastq"], 
-                ancor = ANCOR, 
-                bed = config["plot_type"][GENOME][ANCOR], 
-                plot_type = ["heatmap"])
-                    for GENOME in config["plot_type"].keys() 
-                        for ANCOR in config["plot_type"][GENOME].keys() 
-                            for EXP in DATA["IP"].keys()]
-rule profiles:
+
+rule profiles_RPKM:
     input:
         ############################ profiler ############################
         ##################################################################
@@ -371,17 +437,8 @@ rule profiles:
                         for ANCOR in config["plot_type"][GENOME].keys() 
                             for cond in ["input", "IP"] 
                                 for EXP in DATA[cond].keys()],
-        #IP normalized by Input (ratio over input)
-        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.{plot_type}.png",
-                exp=EXP, 
-                genome=GENOME, 
-                samples=DATA["IP"][EXP]["fastq"], 
-                ancor = ANCOR, 
-                bed = config["plot_type"][GENOME][ANCOR], 
-                plot_type = ["profile"])
-                    for GENOME in config["plot_type"].keys() 
-                        for ANCOR in config["plot_type"][GENOME].keys() 
-                            for EXP in DATA["IP"].keys()],
+
+
 rule mapping:
     input:
         #################################### mapping ###################################
@@ -426,8 +483,12 @@ rule peak_calling:
                 for EXP in EXP_broad_frag]
 
 
+########################################################################
 
 # target rules, not in rule all
+
+########################################################################
+
 rule RDS:
     input:
         ############################ heatmapper and profiler ############################
@@ -442,6 +503,32 @@ rule RDS:
                     for GENOME in config["plot_type"].keys() 
                         for ANCOR in config["plot_type"][GENOME].keys() 
                             for cond in ["input", "IP"] 
+                                for EXP in DATA[cond].keys()],
+        #Heatmap and profile IP normalized by Input (ratio over input)
+        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.RDS",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA["IP"][EXP]["fastq"], 
+                ancor = ANCOR, 
+                bed = config["plot_type"][GENOME][ANCOR])
+                    for GENOME in config["plot_type"].keys() 
+                        for ANCOR in config["plot_type"][GENOME].keys() 
+                            for EXP in DATA["IP"].keys()]
+
+rule RDS_norm:
+    input:
+        ############################ heatmapper and profiler ############################
+        #################################################################################
+        #Heatmap and profile IP and Input(RPKM)
+        [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.{bed}.{ancor}.RDS",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA[cond][EXP]["fastq"], 
+                ancor = ANCOR,
+                bed = config["plot_type"][GENOME][ANCOR])
+                    for GENOME in config["plot_type"].keys() 
+                        for ANCOR in config["plot_type"][GENOME].keys() 
+                            for cond in ["input"]
                                 for EXP in DATA[cond].keys()],
         #Heatmap and profile IP normalized by Input (ratio over input)
         [expand("{exp}/profile/{genome}/{bed}/{ancor}/{exp}.{samples}.input_normalised.{bed}.{ancor}.RDS",
@@ -477,6 +564,75 @@ rule direct_target:
             exp=EXP, genome=GENOME, samples=DATA["IP"][EXP]["fastq"])
             for GENOME in BED_intersect_peaks.keys() for EXP in DATA["IP"].keys()]
 
+rule distance_from_peaks:
+    input:
+        ################################ distance from peak ##########################
+        ##############################################################################
+        ## ancor in TSS, TES, center, body
+        #narrow peak
+        [expand("{exp}/peak_calling/{genome}/narrow/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.tsv",
+                exp=EXP, 
+                genome=GENOME, 
+                samples=DATA["IP"][EXP]["fastq"],
+                bed=BED,
+                ancor=ANCOR)
+                for EXP in EXP_narrow
+                    for GENOME in config["distance_from_closest_peaks"].keys()
+                        for BED in config["distance_from_closest_peaks"][GENOME]
+                            for ANCOR in config["distance_from_closest_peaks"][GENOME][BED]],
+
+        #broad peak
+        [expand("{exp}/peak_calling/{genome}/broad/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.tsv",
+                exp=EXP, 
+                genome=GENOMES, 
+                samples=DATA["IP"][EXP]["fastq"],
+                bed=BED,
+                ancor=ANCOR)
+                for EXP in EXP_broad
+                    for GENOME in config["distance_from_closest_peaks"].keys()
+                        for BED in config["distance_from_closest_peaks"][GENOME]
+                            for ANCOR in config["distance_from_closest_peaks"][GENOME][BED]],
+                
+        #narrow peak _with fraglen
+        [expand("{exp}/peak_calling/{genome}/narrow/frag_{fragLen}/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.tsv",
+                exp=EXP,
+                genome=GENOMES,
+                samples=DATA["IP"][EXP]["fastq"],
+                fragLen = DATA["IP"][EXP]["peak_calling"]["params"]["fragLength"],
+                bed=BED,
+                ancor=ANCOR)
+                for EXP in EXP_narrow_frag
+                    for GENOME in config["distance_from_closest_peaks"].keys()
+                        for BED in config["distance_from_closest_peaks"][GENOME]
+                            for ANCOR in config["distance_from_closest_peaks"][GENOME][BED]],
+
+        #broad peak _with fraglen
+        [expand("{exp}/peak_calling/{genome}/broad/frag_{fragLen}/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.tsv",
+                exp=EXP, 
+                genome=GENOMES, 
+                samples=DATA["IP"][EXP]["fastq"], 
+                fragLen = DATA["IP"][EXP]["peak_calling"]["params"]["fragLength"],
+                bed=BED,
+                ancor=ANCOR)
+                for EXP in EXP_broad_frag
+                    for GENOME in config["distance_from_closest_peaks"].keys()
+                        for BED in config["distance_from_closest_peaks"][GENOME]
+                            for ANCOR in config["distance_from_closest_peaks"][GENOME][BED]]
+
+
+
+
+
+
+
+############################################################################################
+#*******************               ***********************              *******************#
+#*******************               * END OF TARGET RULES *              *******************#
+#*******************               ***********************              *******************#
+############################################################################################
+
+
+
 ###############################
 #       QUALITY CONTROL       #
 ###############################
@@ -490,7 +646,7 @@ rule fast_QC:
     output:
         "{exp}/raw_data/fastQC/{samples}.filtered.fq_fastqc.html",
         "{exp}/raw_data/fastQC/{samples}.filtered.fq_fastqc.zip"
-    threads: 28
+    threads: N_THREAD_MAX
     log:
         "{exp}/raw_data/fastQC/{samples}.fastqc.log"
     run:
@@ -510,7 +666,7 @@ rule spp_xcor:
     input:  bam = "{exp}/mapping/{genome}/{samples}.sorted.bam",
             bai = "{exp}/mapping/{genome}/{samples}.sorted.bam.bai"
     output: "{exp}/peak_calling/{genome}/SPP_xcor/{samples}.spp.xcor.pdf"
-    threads: 28
+    threads: N_THREAD_MAX
     params:
         maxShift = 300,
         bin = 1
@@ -563,7 +719,7 @@ rule bamFingerprint:
         fragmentLength = lambda wildcards: config["default_config"][wildcards.genome]["peak_calling"]["fragLength"],
         numberOfSamples = "500000", # Number of bins that sampled from the genome,
         plotTitle = "'Fingerprint of ChIP-seq data'"
-    threads: 28
+    threads: N_THREAD_MAX
     run:
         tab = []
         # get the name of first directory
@@ -609,7 +765,7 @@ rule bamCorrelate:
                     for cond in ["input", "IP"] for EXP in DATA[cond].keys()])
     output:
         "QC/{genome}/bamCorrelate.bin.npz"
-    threads: 28
+    threads: N_THREAD_MAX
     version: subprocess.getoutput("multiBamSummary --version")
     log:
         "QC/{genome}/bamCorrelate.log"
@@ -630,8 +786,7 @@ rule plotCorrelation:
     version: subprocess.getoutput("plotCorrelation --version")
     log:
         "QC/{genome}/bamCorrelate.bin.{corMethod}.log"
-    threads:
-        1
+    threads: 1
     params:
         whatToPlot = "heatmap",#{heatmap,scatterplot}
         skipZeros = "", #--skipZeros
@@ -665,8 +820,8 @@ rule fastq_gz_to_fq_gz_extension:
     shell:"ln -s {input} {output}"
 
 rule gzip:
-    input:"{base}"
-    output:"{base}.gz"
+    input:"{base}.fastq"
+    output:"{base}.fastq.gz"
     threads: 1
     shell:"gzip {input}"
 
@@ -708,7 +863,7 @@ rule bwa_aln:
     output:
         temp("{exp}/mapping/{genome, [^/]+}/{samples}.sai")
     version: subprocess.getoutput("bwa 2>&1|grep Version:|sed -r 's/Version: +//'")
-    threads: 20
+    threads: N_THREAD_MAX
     log:
         "{exp}/mapping/{genome}/{samples}.bwa_aln.log"
     shell:
@@ -745,7 +900,7 @@ rule sort_bam:
         "{base}.bam"
     output:
         "{base}.sorted.bam"
-    threads: 10
+    threads: N_THREAD_MAX
     log:
         "{base}.sort.log"
     shell:
@@ -764,31 +919,6 @@ rule index_bam:
 ###############################
 #        BigWig MAKING        #
 ###############################
-rule input_normalisation_bw:
-    input:
-        "{exp}/bigwig/{genome}/{samples}.bw",
-        INPUT_exp + "/bigwig/{genome}/" + INPUT_sample + ".bw"
-    output:
-        "{exp}/bigwig/{genome}/{samples}.input_normalised.bw"
-    threads: 28
-    version: subprocess.getoutput("bigwigCompare --version")
-    params:
-        pseudocount = "1",
-        ratio = "ratio", #{log2,ratio,subtract,add,reciprocal_ratio}
-        binSize = "10"
-    run:
-        if input[1] != input[0]:
-            shell(
-                "bigwigCompare "
-                "--bigwig1 {input[0]} "
-                "--bigwig2 {input[1]} "
-                "--outFileName {output} "
-                "--numberOfProcessors {threads} "
-                "--pseudocount {params.pseudocount} "
-                "--ratio {params.ratio} "
-                "--binSize {params.binSize} "
-            )
-
 
 rule bam_to_bigWig:
     input:
@@ -798,7 +928,7 @@ rule bam_to_bigWig:
         "{exp}/bigwig/{genome}/{samples}.bw"
     log:
         "{exp}/bigwig/{genome}/{samples}.bw.log"
-    threads: 28
+    threads: N_THREAD_MAX
     version: subprocess.getoutput("bamCoverage --version")
     params:
         binSize = lambda wildcards: config["default_config"][wildcards.genome]["bigWig"]["bin_size"],
@@ -824,7 +954,7 @@ rule bam_to_bigWig:
             "bamCoverage "
             "-b {input[0]} "
             "-o {output} "
-            "--normalizeUsingRPKM "
+            "--normalizeUsing RPKM "
             "--numberOfProcessors {threads} "
             "--binSize {params.binSize} "
             "{params.centerReads} "
@@ -836,6 +966,91 @@ rule bam_to_bigWig:
             "--minMappingQuality {params.minMappingQuality} "
             "--verbose &>{log}"
         )
+
+
+
+
+rule input_normalisation_bw:
+    input:
+        IP = "{exp}/mapping/{genome}/{samples}.sorted.bam",
+        IP_BAI = "{exp}/mapping/{genome}/{samples}.sorted.bam.bai",
+        Input = INPUT_exp + "/mapping/{genome}/" + INPUT_sample + ".sorted.bam",
+        Input_BAI = INPUT_exp + "/mapping/{genome}/" + INPUT_sample + ".sorted.bam.bai"
+    output:
+        "{exp}/bigwig/{genome}/{samples}.input_normalised.bw"
+    threads: N_THREAD_MAX
+    version: subprocess.getoutput("bamCompare --version")
+    params:
+        scaleFactorsMethod = "SES", #or readCount
+        sampleLength = "--sampleLength 1000", #if SES
+        numberOfSamples = "--numberOfSamples 100000",#if SES
+        pseudocount = "0",
+        ratio = "subtract", #{log2,ratio,subtract,add,reciprocal_ratio}
+        binSize = lambda wildcards: config["default_config"][wildcards.genome]["bigWig"]["bin_size"],
+        smoothLength = lambda wildcards: config["default_config"][wildcards.genome]["bigWig"]["bin_smooth"],
+        centerReads = lambda wildcards: config["default_config"][wildcards.genome]["bigWig"]["centerReads"],
+        ignoreForNormalization = lambda wildcards: config["default_config"][wildcards.genome]["bigWig"]["ignoreForNormalization"],
+        minMappingQuality = lambda wildcards: config["default_config"][wildcards.genome]["bigWig"]["minMappingQuality"]
+    log:"{exp}/bigwig/{genome}/{samples}.input_normalised.log"
+    run:
+        extendReads = config["default_config"][wildcards.genome]["peak_calling"]["fragLength"] # default value
+        
+        if (wildcards.exp in DATA["IP"] and
+            "peak_calling" in DATA["IP"][wildcards.exp] and
+            "params" in DATA["IP"][wildcards.exp]["peak_calling"] and 
+            "fragLength" in DATA["IP"][wildcards.exp]["peak_calling"]["params"]): 
+            extendReads = DATA["IP"][wildcards.exp]["peak_calling"]["params"]["fragLength"]
+        elif (wildcards.exp in DATA["input"] and 
+            "peak_calling" in DATA["input"][wildcards.exp] and
+            "params" in DATA["input"][wildcards.exp]["peak_calling"] and 
+            "fragLength" in DATA["input"][wildcards.exp]["peak_calling"]["params"]):
+            extendReads = DATA["input"][wildcards.exp]["peak_calling"]["params"]["fragLength"]
+        shell(
+            "bamCompare "
+            "--bamfile1 {input.IP} "
+            "--bamfile2 {input.Input} "
+            "--scaleFactorsMethod {params.scaleFactorsMethod} "
+            "{params.sampleLength} "
+            "{params.numberOfSamples} "
+            "--outFileName {output} "
+            "--numberOfProcessors {threads} "
+            "--pseudocount {params.pseudocount} "
+            "--operation {params.ratio} "
+            "--binSize {params.binSize} "
+            "--smoothLength {params.smoothLength} "
+            "{params.centerReads} "
+            "{params.ignoreForNormalization} "
+            "--minMappingQuality {params.minMappingQuality} "
+            "--extendReads " + str(extendReads) + " "     # for version 2.0
+            "--verbose &> {log}"
+        )
+
+# OLD # 
+#~ rule input_normalisation_bw:
+    #~ input:
+        #~ "{exp}/bigwig/{genome}/{samples}.bw",
+        #~ INPUT_exp + "/bigwig/{genome}/" + INPUT_sample + ".bw"
+    #~ output:
+        #~ "{exp}/bigwig/{genome}/{samples}.input_normalised.bw"
+    #~ threads: N_THREAD_MAX
+    #~ version: subprocess.getoutput("bigwigCompare --version")
+    #~ params:
+        #~ pseudocount = "1",
+        #~ ratio = "subtract", #{log2,ratio,subtract,add,reciprocal_ratio}
+        #~ binSize = "10"
+    #~ run:
+        #~ if input[1] != input[0]:
+            #~ shell(
+                #~ "bigwigCompare "
+                #~ "--bigwig1 {input[0]} "
+                #~ "--bigwig2 {input[1]} "
+                #~ "--outFileName {output} "
+                #~ "--numberOfProcessors {threads} "
+                #~ "--pseudocount {params.pseudocount} "
+                #~ "--ratio {params.ratio} "
+                #~ "--binSize {params.binSize} "
+            #~ )
+
 
 
 ###############################
@@ -889,7 +1104,6 @@ rule macs2_peak_calling_frag_length:
                 "-t {input[0]} "
                 "-c {input[1]} "
                 "-f BAM "
-		"--tempdir /home/jean-philippe.villemin/tmp_deeptools/ "
                 "--name {wildcards.samples} "
                 "--gsize {params.genome_size} "
                 "{params.nomodel} " 
@@ -954,7 +1168,6 @@ rule macs2_peak_calling_no_frag_length:
                 "-t {input[0]} "
                 "-c {input[1]} "
                 "-f BAM "
-		"--tempdir /home/jean-philippe.villemin/tmp_deeptools/ "
                 "--name {wildcards.samples} "
                 "--gsize {params.genome_size} "
                 "{params.nomodel} " 
@@ -973,8 +1186,44 @@ rule macs2_peak_calling_no_frag_length:
                     "touch {wildcards.exp}/peak_calling/{wildcards.genome}/{wildcards.peak_type}/{wildcards.samples}_peaks.{wildcards.peak_type}Peak"
                 )
 
+rule sort_bedgraph:
+    input:"{base}.bdg"
+    output:
+        temp("{base}.sort.bdg")
+    threads:1
+    log:
+    shell:"sort -k1,1 -k2,2n {input} >{output}"
+
+rule macs2_Fold_Enrichment:
+    input:
+        control = "{exp}/peak_calling/{genome}/{peak_type}/{suffix}_control_lambda.bdg",
+        treat = "{exp}/peak_calling/{genome}/{peak_type}/{suffix}_treat_pileup.bdg"
+    output:
+        temp("{exp}/peak_calling/{genome}/{peak_type, (narrow)|(broad)}/{suffix}_FE.bdg")
+    threads:1
+    shell:"macs2 bdgcmp -t {input.treat} -c {input.control} -o {output} -m FE"
+
+rule macs2_log_likelihood:
+    input:
+        control = "{exp}/peak_calling/{genome}/{peak_type}/{suffix}_control_lambda.bdg",
+        treat = "{exp}/peak_calling/{genome}/{peak_type}/{suffix}_treat_pileup.bdg"
+    output:
+        temp("{exp}/peak_calling/{genome}/{peak_type, (narrow)|(broad)}/{suffix}_logLR.bdg")
+    threads:1
+    shell:"macs2 bdgcmp -t {input.treat} -c {input.control} -o {output} -m logLR -p 0.00001"
+
+rule macs2_substract:
+    input:
+        control = "{exp}/peak_calling/{genome}/{peak_type}/{suffix}_control_lambda.bdg",
+        treat = "{exp}/peak_calling/{genome}/{peak_type}/{suffix}_treat_pileup.bdg"
+    output:
+        temp("{exp}/peak_calling/{genome}/{peak_type, (narrow)|(broad)}/{suffix}_subtract.bdg")
+    threads:1
+    shell:"macs2 bdgcmp -t {input.treat} -c {input.control} -o {output} -m subtract"
+
+
 rule macs2_bedGraph_to_bigwig:
-    input:"{exp}/peak_calling/{genome}/{peak_type}/{suffix}.bdg"
+    input:"{exp}/peak_calling/{genome}/{peak_type}/{suffix}.sort.bdg"
     output:"{exp}/peak_calling/{genome}/{peak_type, (narrow)|(broad)}/{suffix}.bw"
     params:
         chrom_size = lambda wildcards: config["genome"][wildcards.genome]["chr_len"]
@@ -1021,6 +1270,97 @@ rule make_symbolic_link_narrow_peaks:
         "ls -s {input} {output}"
 
 
+
+
+
+rule sort_bed:
+    input:"{base}"
+    output:
+        temp("{base}.sort.bed")
+    threads:1
+    shell:
+        "bedtools sort -i {input} >{input}.sort.bed"
+
+
+
+rule bed_bgzip:
+    input:
+        "{base}.sort.bed"
+    output:
+        "{base}.sort.bed.gz"
+    threads : 1
+    shell:
+        "bgzip {input}"
+
+rule bed_tabix:
+    input:
+        "{base}.sort.bed.gz"
+    output:
+        "{base}.sort.bed.gz.tbi"
+    threads : 1
+    shell:
+        "tabix -p bed {input}"
+
+
+
+###############################
+#     DISTANCE FROM PEAKS     #
+###############################
+
+rule bedtools_sort:
+    input:"{base}.bed"
+    output:"{base}.sorted.bed"
+    shell : "bedtools sort -i {input} >{output}"
+
+
+
+
+rule distance_from_peak_narrow:
+    input:"{base}/peak_calling/{genome}/{frag}/{samples}_summits.bed"
+    output:"{base}/peak_calling/{genome, [^/]+}/{frag}/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.tsv"
+    log: "{base}/peak_calling/{genome}/{frag}/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.log"
+    run:
+        # choisi la commande en fonction de l'ancre (start/TSS, end/TES, body, center))
+        # si start (2e col) devient negatif, alors start = 0 (pour éviter des erreur avec bedtools)
+        if wildcards.ancor in ["start", "TSS"]:
+            awk_cmd = 'awk \'OFS="\t" {{if($6 == "-"){{TSS = $3;$2 = TSS - 1 ;$3 = TSS }}else{{TSS = $2;$2 = TSS ;$3 = TSS + 1}}if($2<0){{$2=0}}print}}\' '
+        elif wildcards.ancor in ["end", "TES"]:
+            awk_cmd = 'awk \'OFS="\t" {{if($6 == "-"){{TES = $2;$2 = TES;$3 = TES + 1}}else{{TES = $3;$2 = TES - 1;$3 = TES}}if($2<0){{$2=0}}print}}\' '
+        elif wildcards.ancor == "center":
+            awk_cmd = 'awk \'OFS="\t" {{if($6 == "-"){{center = int(($3+$2)/2);$2 = center ;$3 = center + 1}}else{{center = int(($3+$2)/2);$2 = center;$3 = center + 1}}if($2<0){{$2=0}}print}}\' '
+        elif wildcards.ancor == "body":
+            awk_cmd = 'cat '
+
+        # suite de la commande
+        bedtool_cmd = "bedtools closest -a - -b {input} -D a >{output} 2>{log}"
+
+        shell(awk_cmd + config["bed_files"][wildcards.genome][wildcards.bed] + " |  bedtools sort -i | " + bedtool_cmd)
+
+
+
+rule distance_from_peak_broad:
+    input:"{base}/peak_calling/{genome}/{frag}/{samples}_peaks.broadPeak"
+    output:"{base}/peak_calling/{genome, [^/]+}/{frag}/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.tsv"
+    log: "{base}/peak_calling/{genome}/{frag}/distance_from_peak/{bed}/{ancor}/{samples}_peaks.closest.log"
+    run:
+        # choisi la commande en fonction de l'ancre (start/TSS, end/TES, body, center))
+        # si start (2e col) devient negatif, alors start = 0 (pour éviter des erreur avec bedtools)
+        if wildcards.ancor in ["start", "TSS"]:
+            awk_cmd = 'awk \'OFS="\t" {{if($6 == "-"){{TSS = $3;$2 = TSS - 1 ;$3 = TSS }}else{{TSS = $2;$2 = TSS ;$3 = TSS + 1}}if($2<0){{$2=0}}print}}\' '
+        elif wildcards.ancor in ["end", "TES"]:
+            awk_cmd = 'awk \'OFS="\t" {{if($6 == "-"){{TES = $2;$2 = TES;$3 = TES + 1}}else{{TES = $3;$2 = TES - 1;$3 = TES}}if($2<0){{$2=0}}print}}\' '
+        elif wildcards.ancor == "center":
+            awk_cmd = 'awk \'OFS="\t" {{if($6 == "-"){{center = int(($3+$2)/2);$2 = center ;$3 = center + 1}}else{{center = int(($3+$2)/2);$2 = center;$3 = center + 1}}if($2<0){{$2=0}}print}}\' '
+        elif wildcards.ancor == "body":
+            awk_cmd = 'cat '
+
+        # suite de la commande
+        bedtool_cmd = "bedtools closest -a - -b {input} -D a >{output} 2>{log}"
+
+        shell(awk_cmd + config["bed_files"][wildcards.genome][wildcards.bed] + " |  bedtools sort -i | " + bedtool_cmd)
+
+
+
 #### Make mat_recap files   ####
 ################################
 #
@@ -1062,7 +1402,7 @@ rule direct_target_peaks:
         bedtool_cmd = "bedtools intersect -a - -b {input} -wa | cut -f4 > " + wildcards.exp + "/mat_recap/" + wildcards.genome + "/" + wildcards.bed + "."+ wildcards.intersection +".positive_features.tmp"
 
         # création du fichier temporaire contenant les features positives
-        shell(awk_cmd + config["bed_files"][bed_key] + " | " + bedtool_cmd)
+        shell(awk_cmd + config["bed_files"][wildcards.genome][bed_key] + " | " + bedtool_cmd)
 
         # on crée un objet set contenant toutes les features positives
         positive_features = set(line.strip() for line in open(wildcards.exp+"/mat_recap/"+wildcards.genome+"/"+wildcards.bed+"."+wildcards.intersection+".positive_features.tmp", "r"))
@@ -1070,7 +1410,7 @@ rule direct_target_peaks:
         ##make pseudo mat_recap
         #prepare file
         shell(
-            "cut -f4 "+config["bed_files"][bed_key]+" >{wildcards.exp}/mat_recap/{wildcards.genome}/{wildcards.bed}.{wildcards.intersection}.acc.tmp"
+            "cut -f4 "+config["bed_files"][wildcards.genome][bed_key]+" >{wildcards.exp}/mat_recap/{wildcards.genome}/{wildcards.bed}.{wildcards.intersection}.acc.tmp"
         )
 
         bed_file = open(wildcards.exp+"/mat_recap/"+wildcards.genome+"/"+wildcards.bed+"."+wildcards.intersection+".acc.tmp", "r")
@@ -1130,7 +1470,7 @@ rule computeMatrix_ref_point:
                     config["default_config"][wildcards.genome]["plot_type"]["bin_size"],
         sortRegions = "descend",#{descend,ascend,no}
         sortUsing = "mean"
-    threads: 28
+    threads: N_THREAD_MAX
     log:
         "{exp}/profile/{genome}/{bed}/{ref}/{exp}.{samples}.{bed}.{ref}.matrix.log"
     run:
@@ -1138,7 +1478,7 @@ rule computeMatrix_ref_point:
         referencePoint = wildcards.ref
         shell(
             "computeMatrix reference-point "
-            "--regionsFileName " + config["bed_files"][bed_key] + " "
+            "--regionsFileName " + config["bed_files"][wildcards.genome][bed_key] + " "
             "--scoreFileName {input} "
             "--outFileName {output} "
             "--referencePoint "+ referencePoint +" "
@@ -1158,7 +1498,7 @@ rule computeMatrix_unscalled_body:
         "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.matrix.gz"
     version: subprocess.getoutput("computeMatrix --version")
     params:
-        upstream = lambda wildcards : 
+        upstream = lambda wildcards :
                     config["plot_type"][wildcards.genome]["body"][wildcards.bed]["upstream"]
                         if config["plot_type"][wildcards.genome]["body"][wildcards.bed] is not None and
                         "upstream" in config["plot_type"][wildcards.genome]["body"][wildcards.bed]
@@ -1196,14 +1536,13 @@ rule computeMatrix_unscalled_body:
                     config["default_config"][wildcards.genome]["plot_type"]["bin_size"],
         sortRegions = "descend",#{descend,ascend,no}
         sortUsing = "mean"
-    threads: 28
+    threads: N_THREAD_MAX
     log:
         "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.matrix.log"
     run:
-        bed_key = wildcards.bed
         shell(
             "computeMatrix scale-regions "
-            "--regionsFileName " + config["bed_files"][bed_key] + " "
+            "--regionsFileName " + config["bed_files"][wildcards.genome][wildcards.bed] + " "
             "--scoreFileName {input} "
             "--outFileName {output} "
             "--upstream {params.upstream} "
@@ -1215,6 +1554,74 @@ rule computeMatrix_unscalled_body:
             "--sortRegions {params.sortRegions} "
             "--sortUsing {params.sortUsing} "
             "--numberOfProcessors {threads} "
+            "2>{log} "
+        )
+
+rule computeMatrix_unscalled_metagene:
+    input:
+        "{exp}/bigwig/{genome}/{samples}.bw"
+    output:
+        "{exp}/profile/{genome}/{bed}/metagene/{exp}.{samples}.{bed}.metagene.matrix.gz"
+    version: subprocess.getoutput("computeMatrix --version")
+    params:
+        upstream = lambda wildcards :
+                    config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]["upstream"]
+                        if config["plot_type"][wildcards.genome]["metagene"][wildcards.bed] is not None and
+                        "upstream" in config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]
+                        else
+                    config["default_config"][wildcards.genome]["plot_type"]["upstream"],
+        unscaled5prime = lambda wildcards : 
+                    config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]["unscaled5prime"] 
+                        if config["plot_type"][wildcards.genome]["metagene"][wildcards.bed] is not None and
+                        "unscaled5prime" in config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]
+                        else
+                    config["default_config"][wildcards.genome]["plot_type"]["unscaled5prime"],
+        regionBodyLength = lambda wildcards : 
+                    config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]["regionBodyLength"] 
+                        if config["plot_type"][wildcards.genome]["metagene"][wildcards.bed] is not None and
+                        "regionBodyLength" in config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]
+                        else
+                    config["default_config"][wildcards.genome]["plot_type"]["regionBodyLength"],
+        unscaled3prime = lambda wildcards : 
+                    config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]["unscaled3prime"] 
+                        if config["plot_type"][wildcards.genome]["metagene"][wildcards.bed] is not None and
+                        "unscaled3prime" in config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]
+                        else
+                    config["default_config"][wildcards.genome]["plot_type"]["unscaled3prime"],
+        downstream = lambda wildcards : 
+                    config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]["downstream"] 
+                        if config["plot_type"][wildcards.genome]["metagene"][wildcards.bed] is not None and
+                        "downstream" in config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]
+                        else
+                    config["default_config"][wildcards.genome]["plot_type"]["downstream"],
+        binSize = lambda wildcards : 
+                    config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]["bin_size"] 
+                        if config["plot_type"][wildcards.genome]["metagene"][wildcards.bed] is not None and
+                        "bin_size" in config["plot_type"][wildcards.genome]["metagene"][wildcards.bed]
+                        else
+                    config["default_config"][wildcards.genome]["plot_type"]["bin_size"],
+        sortRegions = "descend",#{descend,ascend,no}
+        sortUsing = "mean"
+    threads: N_THREAD_MAX
+    log:
+        "{exp}/profile/{genome}/{bed}/metagene/{exp}.{samples}.{bed}.metagene.matrix.log"
+    run:
+        bed_key = wildcards.bed
+        shell(
+            "computeMatrix scale-regions "
+            "--regionsFileName " + config["bed_files"][wildcards.genome][bed_key] + " "
+            "--scoreFileName {input} "
+            "--outFileName {output} "
+            "--upstream {params.upstream} "
+            "--unscaled5prime {params.unscaled5prime} "
+            "--regionBodyLength {params.regionBodyLength} "
+            "--unscaled3prime {params.unscaled3prime} "            
+            "--downstream {params.downstream} "
+            "--binSize {params.binSize} "
+            "--sortRegions {params.sortRegions} "
+            "--sortUsing {params.sortUsing} "
+            "--numberOfProcessors {threads} "
+            "--metagene "
             "2>{log} "
         )
 
@@ -1244,7 +1651,7 @@ rule deeptools_Matrix_to_RDS:
 ###############################
 rule headmapper_ref_point:
     input:
-        "{exp}/profile/{genome}/{bed}/{ref, (TSS)|(TES)|(center)}/{exp}.{samples}.{bed}.{ref}.matrix.gz"
+        "{exp}/profile/{genome}/{bed}/{ref}/{exp}.{samples}.{bed}.{ref}.matrix.gz"
     output:
         "{exp}/profile/{genome}/{bed}/{ref, (TSS)|(TES)|(center)}/{exp}.{samples}.{bed}.{ref}.heatmap.png"
     params:
@@ -1278,9 +1685,9 @@ rule headmapper_ref_point:
 
 rule headmapper_body:
     input:
-        "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.matrix.gz"
+        "{exp}/profile/{genome}/{bed}/{body}/{exp}.{samples}.{bed}.{body}.matrix.gz"
     output:
-        "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.heatmap.png"
+        "{exp}/profile/{genome}/{bed}/{body, (body)|(metagene)}/{exp}.{samples}.{bed}.{body}.heatmap.png"
     params:
         kmeans = "", #"--kmeans 8",
         sortRegions = "descend", #{descend,ascend,no}
@@ -1306,12 +1713,82 @@ rule headmapper_body:
         "--plotTitle 'body of {wildcards.bed} on {wildcards.exp}' "
 
 
+
+###############################
+#    heatmapper clustering    #
+###############################
+rule headmapper_ref_point_clust:
+    input:
+        "{exp}/profile/{genome}/{bed}/{ref}/{exp}.{samples}.{bed}.{ref}.matrix.gz"
+    output:
+        "{exp}/profile/{genome}/{bed}/{ref, (TSS)|(TES)|(center)}/{clustering}/{nb_clust}/{exp}.{samples}.{bed}.{ref}.heatmap.png"
+    params:
+        clust = lambda wildcards: "--{wildcards.clustering}", #"--kmeans 8",
+        nb_clust = lambda wildcards: "{wildcards.nb_clust}",
+        sortRegions = "descend", #{descend,ascend,no}
+        sortUsing = "mean", #{mean,median,max,min,sum,region_length}
+        averageTypeSummaryPlot = "mean", #{mean,median,min,max,std,sum}
+        zMin = "", #"--zMin 0"
+        zMax = "", #"--zMax 100"
+        heatmapHeight = "25",
+        heatmapWidth = "7.5",
+        whatToShow = "'plot, heatmap and colorbar'" # {plot, heatmap and colorbar,plot and heatmap,heatmap only,colorbar only,heatmap and colorbar}
+    threads: 1
+    run:
+        refPointLabel = wildcards.ref
+        bedFile = wildcards.bed
+        shell(
+        "plotHeatmap --matrixFile {input} --outFileName {output}"
+        "{params.kmeans} "
+        "--sortRegions {params.sortRegions} "
+        "--sortUsing {params.sortUsing} "
+        "--averageTypeSummaryPlot {params.averageTypeSummaryPlot} "
+        "{params.zMin} "
+        "{params.zMax} "
+        "--heatmapHeight {params.heatmapHeight} "
+        "--heatmapWidth {params.heatmapWidth} "
+        "--whatToShow {params.whatToShow} "
+        "--refPointLabel {wildcards.ref} "
+        "--plotTitle '{wildcards.bed} around {wildcards.ref}: {wildcards.exp}' "
+        )
+
+rule headmapper_body_clust:
+    input:
+        "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.matrix.gz"
+    output:
+        "{exp}/profile/{genome}/{bed}/body/{clustering}/{nb_clust}/{exp}.{samples}.{bed}.body.heatmap.png"
+    params:
+        clust = lambda wildcards: "--{wildcards.clustering}", #"--kmeans 8",
+        nb_clust = lambda wildcards: "{wildcards.nb_clust}",
+        sortRegions = "descend", #{descend,ascend,no}
+        sortUsing = "mean", #{mean,median,max,min,sum,region_length}
+        averageTypeSummaryPlot = "mean", #{mean,median,min,max,std,sum}
+        zMin = "", #"--zMin 0"
+        zMax = "", #"--zMax 100"
+        heatmapHeight = "25",
+        heatmapWidth = "7.5",
+        whatToShow = "'plot, heatmap and colorbar'" # {plot, heatmap and colorbar,plot and heatmap,heatmap only,colorbar only,heatmap and colorbar}
+    threads: 1
+    shell:
+        "plotHeatmap --matrixFile {input} --outFileName {output} "
+        "{params.clust} {params.nb_clust} "
+        "--sortRegions {params.sortRegions} "
+        "--sortUsing {params.sortUsing} "
+        "--averageTypeSummaryPlot {params.averageTypeSummaryPlot} "
+        "{params.zMin} "
+        "{params.zMax} "
+        "--heatmapHeight {params.heatmapHeight} "
+        "--heatmapWidth {params.heatmapWidth} "
+        "--whatToShow {params.whatToShow} "
+        "--plotTitle 'body of {wildcards.bed} on {wildcards.exp}' "
+
+
 ###############################
 #          profiler           #
 ###############################
 rule profiler_ref_point:
     input:
-        "{exp}/profile/{genome}/{bed}/{ref, (TSS)|(TES)|(center)}/{exp}.{samples}.{bed}.{ref}.matrix.gz"
+        "{exp}/profile/{genome}/{bed}/{ref}/{exp}.{samples}.{bed}.{ref}.matrix.gz"
     output:
         "{exp}/profile/{genome}/{bed}/{ref, (TSS)|(TES)|(center)}/{exp}.{samples}.{bed}.{ref}.profile.png"
     params:
@@ -1329,9 +1806,9 @@ rule profiler_ref_point:
 
 rule profiler_body:
     input:
-        "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.matrix.gz"
+        "{exp}/profile/{genome}/{bed}/{body}/{exp}.{samples}.{bed}.{body}.matrix.gz"
     output:
-        "{exp}/profile/{genome}/{bed}/body/{exp}.{samples}.{bed}.body.profile.png"
+        "{exp}/profile/{genome}/{bed}/{body, (body)|(metagene)}/{exp}.{samples}.{bed}.{body}.profile.png"
     params:
         kmeans = "", #"--kmeans 8",
         sortRegions = "descend", #{descend,ascend,no}
@@ -1361,7 +1838,7 @@ rule computeGCBias_narrow:
     output:
         "{exp}/mapping/{genome}/GCBias.{samples}.png",
         "{exp}/mapping/{genome}/GCBias.{samples}.matrix.txt"
-    #~ threads: 8
+    threads: 8
     params:
         effectiveGenomeSize = "2451960000",
         genome2bit = lambda wildcards: config["genome"][wildcards.genome]["2bit"]
@@ -1393,7 +1870,7 @@ rule computeGCBias_broad:
     output:
         "{exp}/mapping/{genome}/GCBias.{samples}.png",
         "{exp}/mapping/{genome}/GCBias.{samples}.matrix.txt"
-    #~ threads: 8
+    threads: 8
     params:
         effectiveGenomeSize = "2451960000",
         genome2bit = lambda wildcards: config["genome"][wildcards.genome]["2bit"]
@@ -1424,7 +1901,7 @@ rule computeInputGCBias:
     output:
         "{exp}/mapping/{genome}/GCBias.Input.{samples}.png",
         "{exp}/mapping/{genome}/GCBias.Input.{samples}.matrix.txt"
-    #~ threads: 8
+    threads: 8
     params:
         effectiveGenomeSize = "2451960000",
         genome2bit = lambda wildcards: config["genome"][wildcards.genome]["2bit"]
